@@ -1,0 +1,93 @@
+version: '3'
+services:
+  app:
+    container_name: api-gateway
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_NAME: nest
+      DATABASE_URI: mongodb://mongodb:27017
+      USER_SERVICE_HOST: user-service
+      MAIL_SERVICE_URI: mail-service
+    ports:
+      - '4000:4000'
+    depends_on:
+      - user-service
+      - mail-service
+      - mongodb
+    volumes:
+      - ./:/usr/src/app
+    networks:
+      - node-network
+
+  central-system:
+    container_name: central-system
+    build:
+      context: ./central-system
+      dockerfile: Dockerfile
+    ports:
+      - '4001:4001'
+    environment:
+      DATABASE_NAME: nest
+      DATABASE_URI: mongodb://mongodb:27017
+      USER_SERVICE_HOST: user-service
+      MAIL_SERVICE_URI: central-system
+    volumes:
+      - ./:/usr/src/app
+    networks:
+      - node-network
+
+  mail-service:
+    container_name: mail-service
+    build:
+      context: ./mail-service
+      dockerfile: Dockerfile
+    ports:
+      - '4003:4003'
+    environment:
+      DATABASE_NAME: nest
+      DATABASE_URI: mongodb://mongodb:27017
+      USER_SERVICE_HOST: user-service
+      MAIL_SERVICE_URI: mail-service
+    volumes:
+      - ./:/usr/src/app
+    networks:
+      - node-network
+
+  user-service:
+    container_name: user-service
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_NAME: nest
+      DATABASE_URI: mongodb://mongodb:27017
+      USER_SERVICE_HOST: user-service
+      MAIL_SERVICE_URI: mail-service
+    ports:
+      - '4002:4002'
+    volumes:
+      - .api-gateway/:/usr/src/app
+    networks:
+      - node-network
+
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    restart: always
+    ports:
+      - '27017:27017'
+    volumes:
+      - ./data:/data/db
+    networks:
+      - node-network
+    logging:
+      driver: none
+
+volumes:
+  mongodb:
+
+networks:
+  node-network:
+    driver: bridge
