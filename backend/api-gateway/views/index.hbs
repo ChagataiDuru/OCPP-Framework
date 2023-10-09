@@ -1,0 +1,84 @@
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Dashboard</title>
+        <style>
+            /* Header styles */
+            header {
+                background-color: black;
+                color: white;
+                display: flex;
+                justify-content: space-between;
+                padding: 10px;
+            }
+            header a {
+                color: white;
+                text-decoration: none;
+                margin-right: 10px;
+            }
+            /* Box styles */
+            .box-container {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                align-items: center;
+                margin-top: 50px;
+            }
+            .box {
+                background-color: white;
+                border: 1px solid black;
+                width: 200px;
+                height: 200px;
+                margin: 10px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+            }
+            .box h2 {
+                color: black;
+                margin-bottom: 10px;
+            }
+            .box p {
+                color: red;
+                font-size: 24px;
+                margin-top: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>Dashboard</h1>
+            <nav>
+                <a href="#">Home</a>
+                <a href="#">Log</a>
+                <a href="#">Sign Out</a>
+            </nav>
+        </header>
+        <div class="box-container">
+            <div class="box">
+                <h2>Number of Users</h2>
+                <p>{{numberOfUsers}}</p>
+            </div>
+            <div class="box">
+                <h2>Number of Charge Points</h2>
+                <p>{{numberOfChargePoints}}</p>
+            </div>
+            <div class="box">
+                <h2>Number of Connected JSON Charge Points</h2>
+                <p>{{numberOfConnectedJSONChargePoints}}</p>
+            </div>
+            <div class="box">
+                <h2>Received Heartbeats</h2>
+                <p>{{receivedHeartbeats}}</p>
+            </div>
+            <div class="box">
+                <h2>Connector Status</h2>
+                <p>{{connectorStatus}}</p>
+            </div>
+        </div>
+    </body>
+</html>
