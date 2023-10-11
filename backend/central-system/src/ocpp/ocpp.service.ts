@@ -41,7 +41,7 @@ export class OcppService {
         });
     }
 
-    async ChooseClient(clientId: string) {
+    async ChooseClient(clientId: string): Promise<OcppClientConnection> {
         const client = this.connectedChargePoints.find((client: OcppClientConnection) => client.getCpId() === clientId);
         if (!client) {
             throw new Error(`Client ${clientId} not found`);
@@ -49,14 +49,15 @@ export class OcppService {
         return client;
     }
 
-    async ListConnectedChargePoints() {
+    async ListConnectedChargePoints(): Promise<number> {
         console.log('Connected charge points:');
         for (const client of this.connectedChargePoints) {
           console.log(`- ${client.getCpId()}`);
         }
+        return this.connectedChargePoints.length;
     }
 
-    async UnlockConnector(clientId: string){
+    async UnlockConnector(clientId: string): Promise<string>{
         const client = await this.ChooseClient(clientId)
 
         const payload: UnlockConnectorRequest = {
@@ -65,8 +66,10 @@ export class OcppService {
         };
         client.callRequest("UnlockConnector",payload).then((response: UnlockConnectorResponse) => {
             console.log(response);
+            return response.status;
         }).catch((err) => {
             console.log(err);
         });
+        return "error";
     }
 }

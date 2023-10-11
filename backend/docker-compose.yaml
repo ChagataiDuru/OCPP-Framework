@@ -48,7 +48,7 @@ services:
     environment:
       DATABASE_NAME: nest
       DATABASE_URI: mongodb://mongodb:27017
-      USER_SERVICE_HOST: user-service
+      USER_SERVICE_HOST: user-serice
       MAIL_SERVICE_URI: mail-service
     volumes:
       - ./:/usr/src/app
@@ -68,7 +68,7 @@ services:
     ports:
       - '4002:4002'
     volumes:
-      - .api-gateway/:/usr/src/app
+      - ./:/usr/src/app
     networks:
       - node-network
 
@@ -90,4 +90,4 @@ volumes:
 
 networks:
   node-network:
-    driver: bridge
+    driver: bridgex

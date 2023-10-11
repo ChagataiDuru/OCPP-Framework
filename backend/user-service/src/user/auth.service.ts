@@ -1,11 +1,10 @@
-import { BadRequestException, Body, Injectable, NotFoundException, Session, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException, Session, UnauthorizedException } from "@nestjs/common";
 import { randomBytes,scrypt as _scrypt } from "crypto";
 import { promisify } from "util";
 import { plainToClass } from 'class-transformer';
 import { CreateUserDto } from "./dtos/create-user.dto";
 
 import { UserService } from "./user.service";
-import { MessagePattern } from "@nestjs/microservices";
 
 const scrypt = promisify(_scrypt);
 

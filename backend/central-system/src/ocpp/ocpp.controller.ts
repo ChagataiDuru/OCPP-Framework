@@ -1,4 +1,4 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get, Param, Post } from '@nestjs/common';
 import { OcppService } from './ocpp.service';
 
 @Controller('ocpp')
@@ -19,10 +19,10 @@ export class OcppController {
         return message;
     }
 
-    @Post('unlock')
-    async UnlockConnector(): Promise<string> {
+    @Post('unlock/:id')
+    async UnlockConnector(@Param('id') id): Promise<string> {
         const message = 'Hello OCPP!';
-        this.ocppService.UnlockConnector("CP_1");
+        this.ocppService.UnlockConnector(id);
         return message;
     }
 

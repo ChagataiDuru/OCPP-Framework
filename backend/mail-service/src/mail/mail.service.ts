@@ -6,14 +6,14 @@ export class MailService {
   constructor(private mailerService: MailerService) {}
 
 
-  async sendUserConfirmation(user: any, token: string) {
+  async sendChargingStatus(chargerState: any, email: string) {
 
     await this.mailerService.sendMail({
-      to: user.email,
+      to: email,
       subject: 'Welcome to Nice App! Confirm your Email',
       template: './ChargerStatus', 
       context: { 
-        name: user.name,
+        state: chargerState,
       },
     });
   }

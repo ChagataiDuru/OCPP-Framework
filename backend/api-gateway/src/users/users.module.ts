@@ -1,20 +1,20 @@
 import { Module } from '@nestjs/common';
-import { MailController } from './mail.controller';
+import { UsersController } from './users.controller';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 
 @Module({
   imports: [
     ClientsModule.register([
       {
-        name: 'MAIL_SERVICE',
+        name: 'USER_SERVICE',
         transport: Transport.TCP,
         options: {
           host: process.env.USER_SERVICE_HOST || 'localhost',
-          port: 4003,
+          port: 4002,
         },  
       },
     ]),
   ],
-  controllers: [MailController]
+  controllers: [UsersController]
 })
-export class MailModule {}
+export class UsersModule {}
