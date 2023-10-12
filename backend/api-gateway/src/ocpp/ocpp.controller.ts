@@ -1,12 +1,8 @@
-import { Controller } from '@nestjs/common';
-
-@Controller('ocpp')
-export class OcppController {}
-import { Controller, Get, NotFoundException, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, NotFoundException, Param, UseGuards } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiInternalServerErrorResponse, ApiOkResponse } from '@nestjs/swagger';
 import { ClientProxy } from '@nestjs/microservices';
 import { Serialize } from 'src/interceptors/serialize.interceptor';
-import { CurrentUser } from './decorators/current-user.decorator';
+import { CurrentUser } from '../users/decorators/current-user.decorator';
 import { OcppDto } from './dtos/ocpp.dto';
 import { AdminGuard } from 'src/guards/admin.guard';
 

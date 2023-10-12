@@ -1,6 +1,5 @@
 import { Logger,Injectable } from '@nestjs/common';
-import { BootNotificationRequest, BootNotificationResponse, HeartbeatRequest, HeartbeatResponse, OcppClientConnection, OcppServer,UnlockConnectorRequest,UnlockConnectorResponse } from 'ocpp-ts';
-import { on } from 'events';
+import { BootNotificationRequest, BootNotificationResponse, HeartbeatRequest, HeartbeatResponse, OcppClientConnection, OcppServer,UnlockConnectorRequest,UnlockConnectorResponse } from '@extrawest/node-ts-ocpp';
 
 @Injectable()
 export class OcppService {
@@ -8,16 +7,14 @@ export class OcppService {
         private readonly MyOcppServer: OcppServer
       ) {}
     
-    private readonly logger = new Logger(OcppService.name);
+    private readonly logger = new Logger('OcppService2.0');
     private readonly connectedChargePoints: OcppClientConnection[] = [];
 
     async EstablishServer() {
-        this.MyOcppServer.listen(9210);
-        console.log('Server1.6 listening on port 9210');
+        this.MyOcppServer.listen(9200);
+        console.log('Server2.0 listening on port 9200');
         console.log(this.MyOcppServer);
         this.MyOcppServer.on('connection', (client: OcppClientConnection) => {
-
-            this.connectedChargePoints.push(client);
 
             this.logger.log(`Client ${client.getCpId()} connected`);
 
@@ -31,6 +28,7 @@ export class OcppService {
                     currentTime: new Date().toISOString(),
                     interval: 10,
                 };
+                this.logger.log(`BootNotification from ${client.getCpId()}, at ${response.currentTime}, heartbeat interval ${response.interval}`);
                 cb(response);
             });
             client.on('Heartbeat', (request: HeartbeatRequest, cb: (response: HeartbeatResponse) => void) => {
@@ -54,7 +52,7 @@ export class OcppService {
     async ListConnectedChargePoints(): Promise<number> {
         console.log('Connected charge points:');
         for (const client of this.connectedChargePoints) {
-          console.log(`- ${client.getCpId()}`);
+          this.logger.log(`- ${client.getCpId()}`);
         }
         return this.connectedChargePoints.length;
     }
@@ -64,6 +62,7 @@ export class OcppService {
 
         const payload: UnlockConnectorRequest = {
             connectorId: 1,
+            evseId: 1,
         };
         client.callRequest("UnlockConnector",payload).then((response: UnlockConnectorResponse) => {
             console.log(response);

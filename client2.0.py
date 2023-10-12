@@ -72,8 +72,8 @@ async def main():
     while True:
         print("Menu:")
         print("1. Create a new ChargePoint")
-        print("2. Establish connection with a Central System")
-        print("3. List all connected ChargePoints")
+        print("2. Create 3 charging point")
+        print("3. Establish connection with a Central System initial")
         print("4. Exit")
         choice = input("Enter your choice: ")
 
@@ -82,6 +82,12 @@ async def main():
             charge_point_ids.append(cp_id)
             tasks.append(asyncio.create_task(create_chargepoint(cp_id)))
         elif choice == '2':
+            for i in range(3):
+                cp_id = f"CP{i+1}"
+                print(f"Creating {cp_id}")
+            charge_point_ids.append(cp_id)
+            tasks.append(asyncio.create_task(create_chargepoint(cp_id)))
+        elif choice == '3':
             try:
                 await asyncio.gather(*tasks)
             except (OSError, websockets.exceptions.ConnectionClosedError) as e:
@@ -89,10 +95,6 @@ async def main():
                 print("Connection failed. Restarting...")
                 subprocess.call(["python", __file__])
                 return        
-        elif choice == '3':
-            print("List of ChargePoints:")
-            for cp_id in charge_point_ids:
-                print(cp_id)
         elif choice == '4':
             break
         else:
