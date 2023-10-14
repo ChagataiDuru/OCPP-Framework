@@ -29,7 +29,7 @@ export class OcppService {
                 const response: BootNotificationResponse = {
                     status: 'Accepted',
                     currentTime: new Date().toISOString(),
-                    interval: 10,
+                    interval: 20,
                 };
                 cb(response);
             });

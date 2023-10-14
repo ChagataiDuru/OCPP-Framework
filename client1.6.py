@@ -81,10 +81,10 @@ async def main():
             tasks.append(asyncio.create_task(create_chargepoint(cp_id)))
         elif choice == '2':
             for i in range(3):
-                cp_id = f"CP{i+1}"
+                cp_id = f"CP1.6-{i+1}"
                 print(f"Creating {cp_id}")
-            charge_point_ids.append(cp_id)
-            tasks.append(asyncio.create_task(create_chargepoint(cp_id)))
+                charge_point_ids.append(cp_id)
+                tasks.append(asyncio.create_task(create_chargepoint(cp_id)))
         elif choice == '3':
             try:
                 await asyncio.gather(*tasks)

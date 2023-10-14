@@ -12,9 +12,13 @@ export class OcppService {
 
     async EstablishServer() {
         this.MyOcppServer.listen(9200);
+        
         console.log('Server2.0 listening on port 9200');
         console.log(this.MyOcppServer);
+
         this.MyOcppServer.on('connection', (client: OcppClientConnection) => {
+
+            this.connectedChargePoints.push(client);
 
             this.logger.log(`Client ${client.getCpId()} connected`);
 

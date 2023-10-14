@@ -1,76 +1,5 @@
 version: '3'
 services:
-  app:
-    container_name: api-gateway
-    build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
-    environment:
-      DATABASE_NAME: nest
-      DATABASE_URI: mongodb://mongodb:27017
-      USER_SERVICE_HOST: user-service
-      MAIL_SERVICE_URI: mail-service
-    ports:
-      - '4000:4000'
-    depends_on:
-      - user-service
-      - mail-service
-      - mongodb
-    volumes:
-      - ./:/usr/src/app
-    networks:
-      - node-network
-
-  central-system:
-    container_name: central-system
-    build:
-      context: ./central-system
-      dockerfile: Dockerfile
-    ports:
-      - '4001:4001'
-    environment:
-      DATABASE_NAME: nest
-      DATABASE_URI: mongodb://mongodb:27017
-      USER_SERVICE_HOST: user-service
-      MAIL_SERVICE_URI: central-system
-    volumes:
-      - ./:/usr/src/app
-    networks:
-      - node-network
-
-  mail-service:
-    container_name: mail-service
-    build:
-      context: ./mail-service
-      dockerfile: Dockerfile
-    ports:
-      - '4003:4003'
-    environment:
-      DATABASE_NAME: nest
-      DATABASE_URI: mongodb://mongodb:27017
-      USER_SERVICE_HOST: user-serice
-      MAIL_SERVICE_URI: mail-service
-    volumes:
-      - ./:/usr/src/app
-    networks:
-      - node-network
-
-  user-service:
-    container_name: user-service
-    build:
-      context: ./user-service
-      dockerfile: Dockerfile
-    environment:
-      DATABASE_NAME: nest
-      DATABASE_URI: mongodb://mongodb:27017
-      USER_SERVICE_HOST: user-service
-      MAIL_SERVICE_URI: mail-service
-    ports:
-      - '4002:4002'
-    volumes:
-      - ./:/usr/src/app
-    networks:
-      - node-network
 
   mongodb:
     image: mongo:6.0
@@ -84,6 +13,105 @@ services:
       - node-network
     logging:
       driver: none
+
+  rabbitmq:
+    image: rabbitmq:3.12.6-management
+    container_name: csms-rabbitmq
+    restart: always
+    volumes:
+      - ./rabbitmq:/var/lib/rabbitmq
+    env_file:
+      - fileName: .env
+    ports:
+      - "${RABBITMQ_PORT}:${RABBITMQ_PORT}"
+      - "${RABBITMQ_UI_PORT}:${RABBITMQ_UI_PORT}"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    networks:
+      - node-network
+    logging:
+      driver: none
+
+  app:
+    container_name: management-system
+    build:
+      context: ./management-system
+      dockerfile: Dockerfile
+    env_file:
+      - fileName: .env
+    environment:
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_URI: ${DATABASE_URI}
+      USER_SERVICE_HOST: ${USER_SERVICE_HOST}
+      MAIL_SERVICE_URI: ${MAIL_SERVICE_URI}
+    ports:
+      - '4000:4000'
+    depends_on:
+      - mongodb
+      - rabbitmq
+    volumes:
+      - ./:/usr/src/app
+    networks:
+      - node-network
+
+  central-system-node:
+    container_name: central-system-node
+    build:
+      context: ./central-system
+      dockerfile: Dockerfile
+    ports:
+      - '4001:4001'
+    env_file:
+      - fileName: .env
+    environment:
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_URI: ${DATABASE_URI}
+      USER_SERVICE_HOST: ${USER_SERVICE_HOST}
+      MAIL_SERVICE_URI: ${MAIL_SERVICE_URI}
+    volumes:
+      - ./:/usr/src/app
+    networks:
+      - node-network
+    depends_on:
+      - rabbitmq 
+
+  user-service:
+    container_name: user-service
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    env_file:
+      - fileName: .env
+    environment:
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_URI: ${DATABASE_URI}
+      USER_SERVICE_HOST: ${USER_SERVICE_HOST}
+      MAIL_SERVICE_URI: ${MAIL_SERVICE_URI}
+    ports:
+      - '4002:4002'
+    volumes:
+      - ./:/usr/src/app
+    networks:
+      - node-network
+
+  mail-service:
+    container_name: mail-service
+    build:
+      context: ./mail-service
+      dockerfile: Dockerfile
+    ports:
+      - '4003:4003'
+    env_file:
+      - fileName: .env
+    environment:
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_URI: ${DATABASE_URI}
+      USER_SERVICE_HOST: ${USER_SERVICE_HOST}
+    volumes:
+      - ./:/usr/src/app
+    networks:
+      - node-network
 
 volumes:
   mongodb:
