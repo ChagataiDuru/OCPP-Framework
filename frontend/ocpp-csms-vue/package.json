@@ -14,9 +14,12 @@
   "dependencies": {
     "pinia": "^2.1.6",
     "vue": "^3.3.4",
-    "vue-router": "^4.2.4"
+    "vue-router": "^4.2.4",
+    "vuetify": "^3.3.22",
+    "webfontloader": "^1.6.28"
   },
   "devDependencies": {
+    "@mdi/font": "^7.3.67",
     "@rushstack/eslint-patch": "^1.3.3",
     "@tsconfig/node18": "^18.2.2",
     "@types/node": "^18.17.17",
