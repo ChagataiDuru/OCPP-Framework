@@ -20,8 +20,6 @@ services:
     restart: always
     volumes:
       - ./rabbitmq:/var/lib/rabbitmq
-    env_file:
-      - fileName: .env
     ports:
       - "${RABBITMQ_PORT}:${RABBITMQ_PORT}"
       - "${RABBITMQ_UI_PORT}:${RABBITMQ_UI_PORT}"
@@ -38,8 +36,6 @@ services:
     build:
       context: ./management-system
       dockerfile: Dockerfile
-    env_file:
-      - fileName: .env
     environment:
       DATABASE_NAME: ${DATABASE_NAME}
       DATABASE_URI: ${DATABASE_URI}
@@ -62,8 +58,6 @@ services:
       dockerfile: Dockerfile
     ports:
       - '4001:4001'
-    env_file:
-      - fileName: .env
     environment:
       DATABASE_NAME: ${DATABASE_NAME}
       DATABASE_URI: ${DATABASE_URI}
@@ -81,8 +75,6 @@ services:
     build:
       context: ./user-service
       dockerfile: Dockerfile
-    env_file:
-      - fileName: .env
     environment:
       DATABASE_NAME: ${DATABASE_NAME}
       DATABASE_URI: ${DATABASE_URI}
@@ -102,8 +94,6 @@ services:
       dockerfile: Dockerfile
     ports:
       - '4003:4003'
-    env_file:
-      - fileName: .env
     environment:
       DATABASE_NAME: ${DATABASE_NAME}
       DATABASE_URI: ${DATABASE_URI}
@@ -118,4 +108,4 @@ volumes:
 
 networks:
   node-network:
-    driver: bridgex
+    driver: bridge
