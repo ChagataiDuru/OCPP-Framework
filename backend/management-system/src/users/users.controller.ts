@@ -26,6 +26,12 @@ export class UsersController {
       return session.user;
     }
 
+    @Get('/accounts')
+    async accounts(@Session() session: any) {
+      console.log(this.client)
+      return session.user;
+    }
+
     @Post('/signup')
     @ApiOkResponse({ type: CreateUserDto, description: 'Successfully created user' })
     @ApiBadRequestResponse({ description: 'User with that email already exists.' })

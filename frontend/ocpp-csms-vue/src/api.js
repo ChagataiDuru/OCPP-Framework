@@ -1,7 +1,7 @@
 import axios from "axios";
 import router from "@/router";
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = "http://localhost:4000";
 
 export function request(
   path,
