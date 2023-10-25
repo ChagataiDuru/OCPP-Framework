@@ -2,23 +2,20 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { OcppModule } from './ocpp/ocpp.module';
-import { ClientsModule, Transport } from '@nestjs/microservices';
+import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
 
 @Module({
   imports: [OcppModule,
-    ClientsModule.register([
-    {
-      name: 'rabbit-mq-module',
-      transport: Transport.RMQ,
-      options: {
-        urls: [
-          'amqp://csms:csms@localhost:5672/',
-        ],
-        queue: 'rabbit-mq-nest-js',
-      },
-    },
-  ]),
-],
+    RabbitMQModule.forRoot(RabbitMQModule, {
+      exchanges: [
+        {
+          name: 'exchange_name',
+          type: 'topic',
+        },
+      ],
+      uri: 'amqp://csms:csms@localhost:5672',
+    }),
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

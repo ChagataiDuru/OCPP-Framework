@@ -1,8 +1,8 @@
-import { Logger,Injectable } from '@nestjs/common';
+import { Logger,Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { BootNotificationRequest, BootNotificationResponse, HeartbeatRequest, HeartbeatResponse, OcppClientConnection, OcppServer,UnlockConnectorRequest,UnlockConnectorResponse } from '@extrawest/node-ts-ocpp';
 
 @Injectable()
-export class OcppService {
+export class OcppService implements OnApplicationBootstrap{
     constructor(
         private readonly MyOcppServer: OcppServer
       ) {}
@@ -10,11 +10,9 @@ export class OcppService {
     private readonly logger = new Logger('OcppService2.0');
     private readonly connectedChargePoints: OcppClientConnection[] = [];
 
-    async EstablishServer() {
+    async onApplicationBootstrap() {
         this.MyOcppServer.listen(9200);
-        
-        console.log('Server2.0 listening on port 9200');
-        console.log(this.MyOcppServer);
+        this.logger.log('Server2.0 listening on port 9200');
 
         this.MyOcppServer.on('connection', (client: OcppClientConnection) => {
 

@@ -6,14 +6,6 @@ import { OcppService as Ocpp1Server } from './ocpp.service';
 export class OcppController {
     constructor(private readonly ocpp1Service: Ocpp1Server,private readonly ocpp2Service: Ocpp2Server) {}
 
-    @Get()
-    async EstablishServer(): Promise<string> {
-        const message = 'Hello OCPP!';
-        this.ocpp1Service.EstablishServer();
-        this.ocpp2Service.EstablishServer();
-        return message;
-    }
-
     @Get('list')
     async ListConnectedChargePoints(): Promise<string> {
         const message = 'Hello OCPP!';

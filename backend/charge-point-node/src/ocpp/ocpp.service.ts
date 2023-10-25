@@ -1,12 +1,9 @@
-import { Logger,Injectable } from '@nestjs/common';
+import { Logger,Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { BootNotificationRequest, BootNotificationResponse, HeartbeatRequest, HeartbeatResponse, OcppClientConnection, OcppServer,UnlockConnectorRequest,UnlockConnectorResponse } from 'ocpp-ts';
 import { on } from 'events';
 
 @Injectable()
-export class OcppService {
-    updateTransactionStatus(chargePointId: string, transactionId: string, status: string) {
-        throw new Error('Method not implemented.');
-    }
+export class OcppService implements OnApplicationBootstrap{
     constructor(
         private readonly MyOcppServer: OcppServer
       ) {}
@@ -14,10 +11,10 @@ export class OcppService {
     private readonly logger = new Logger(OcppService.name);
     private readonly connectedChargePoints: OcppClientConnection[] = [];
 
-    async EstablishServer() {
+    async onApplicationBootstrap() {
         this.MyOcppServer.listen(9210);
-        console.log('Server1.6 listening on port 9210');
-        console.log(this.MyOcppServer);
+        this.logger.log('Server1.6 listening on port 9210');
+        
         this.MyOcppServer.on('connection', (client: OcppClientConnection) => {
 
             this.connectedChargePoints.push(client);
@@ -44,6 +41,10 @@ export class OcppService {
                 cb(response);
             });
         });
+    }
+
+    updateTransactionStatus(chargePointId: string, transactionId: string, status: string) {
+        throw new Error('Method not implemented.');
     }
 
     async ChooseClient(clientId: string): Promise<OcppClientConnection> {

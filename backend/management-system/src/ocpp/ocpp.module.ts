@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { OcppController } from './ocpp.controller';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { RabbitMQService } from './rabbitmq.service';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
       },
     ]),
   ],
+  providers: [RabbitMQService],
   controllers: [OcppController]
 })
 export class OcppModule {}

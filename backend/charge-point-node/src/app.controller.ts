@@ -4,14 +4,9 @@ import { RabbitmqService } from './ocpp/rabbitmq.service';
 @Controller()
 export class AppController {
   constructor(
-    private readonly appService: AppService,
-    private readonly rabbitMQService: RabbitmqService,
-  ) {}
+    private readonly appService: AppService,  ) {}
   @Get()
   async getHello() {
-    this.rabbitMQService.send('rabbit-mq-producer', {
-      message: this.appService.getHello(),
-    });
     return 'Message sent to the queue!';
   }
 }
