@@ -1,10 +1,12 @@
 import { Logger,Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { BootNotificationRequest, BootNotificationResponse, HeartbeatRequest, HeartbeatResponse, OcppClientConnection, OcppServer,UnlockConnectorRequest,UnlockConnectorResponse } from '@extrawest/node-ts-ocpp';
+import { RabbitRPC, RabbitMQModule, AmqpConnection, Nack } from '@golevelup/nestjs-rabbitmq';
 
 @Injectable()
 export class OcppService implements OnApplicationBootstrap{
     constructor(
-        private readonly MyOcppServer: OcppServer
+        private readonly MyOcppServer: OcppServer,
+        private readonly amqpConnection: AmqpConnection
       ) {}
     
     private readonly logger = new Logger('OcppService2.0');
@@ -33,10 +35,14 @@ export class OcppService implements OnApplicationBootstrap{
                 this.logger.log(`BootNotification from ${client.getCpId()}, at ${response.currentTime}, heartbeat interval ${response.interval}`);
                 cb(response);
             });
-            client.on('Heartbeat', (request: HeartbeatRequest, cb: (response: HeartbeatResponse) => void) => {
+            client.on('Heartbeat', async (request: HeartbeatRequest, cb: (response: HeartbeatResponse) => void) => {
                 const response: HeartbeatResponse = {
                     currentTime: new Date().toISOString(),
                 };
+                if (client.getCpId()) {
+                    this.logger.log(client);  
+                    await this.amqpConnection.publish('management.system', 'heartbeat.routing.key', `Received heartbeat from: ${client.getCpId()} at ${new Date().toISOString()}`);
+                }
                 this.logger.log(`Heartbeat from ${client.getCpId()}, at ${response.currentTime}`);
                 cb(response);
             });
