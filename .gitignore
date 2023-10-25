@@ -130,3 +130,4 @@ dist
 .pnp.*
 
 /backend/rabbitmq
+yapilacaklar.txt
