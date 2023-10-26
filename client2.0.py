@@ -13,6 +13,37 @@ logging.basicConfig(level=logging.INFO)
 
 class ChargePoint(cp):
 
+    auth = False
+    serial_number = "1234567890"
+    password = "1234"
+
+    async def send_authorize(self):
+        print(f"Sending authorize for {self.id}.")
+        request = call.AuthorizePayload(
+            id_token={
+                'id_token': self.password,
+                'type': 'ISO14443',
+                'additional_info': [{
+                    'additionalIdToken': self.serial_number,
+                    'type': 'ISO14443'
+                }]
+            },
+            )
+        response = await self.call(request)
+        print(f"Received authorize response for {self.id}: {response}")
+        if response.id_token_info['status'] == "Accepted":
+            self.auth = True
+            print(f"Authorized {self.id}.")
+            self.send_boot_notification()
+        else:
+            try:
+                await self._connection.close()
+            except (OSError, websockets.exceptions.ConnectionClosedError,websockets.exceptions.ConnectionClosedOK) as e:
+                print(e)
+                print(f"Authorization failed for {self.id}.")
+                subprocess.call(["python", __file__])
+                return        
+
     async def send_heartbeat(self, interval):
         print(f"Sending heartbeat for {self.id}.")
         request = call.HeartbeatPayload()
@@ -45,8 +76,7 @@ class ChargePoint(cp):
         response = await self.call(request)
         print(response)
         print(f"Received unlock connector response for {self.id}.")
-    
-    @on("Sta")    
+       
     async def on_status_notification(self, request):
         print(f"Received status notification for {self.id}.")
         return call.StatusNotificationPayload()   
@@ -55,15 +85,20 @@ class ChargePoint(cp):
         print(f"Received firmware status notification for {self.id}.")
         return call.FirmwareStatusNotificationPayload()
     
+    def __init__(self, id, connection, response_timeout=30,password="1234",serial_number="1234567890"):
+        super().__init__(id, connection, response_timeout)
+        self.password = password
+        self.serial_number = serial_number
 
 
-async def create_chargepoint(cp_id):
+
+async def create_chargepoint(cp_id,password,serial_number):
     async with websockets.connect(
             f'ws://localhost:9200/{cp_id}',
             subprotocols=['ocpp2.0.1']
     ) as ws:
-        charge_point = ChargePoint(cp_id, ws)
-        await asyncio.gather(charge_point.start(), charge_point.send_boot_notification())
+        charge_point = ChargePoint(cp_id, ws, 30, password, serial_number)
+        await asyncio.gather(charge_point.start(), charge_point.send_authorize())
 
 async def main():
     charge_point_ids = []
@@ -79,14 +114,17 @@ async def main():
 
         if choice == '1':
             cp_id = input("Enter ChargePoint ID: ")
+            passw = input("Enter Pass: ")
+            sn = input("Enter sn: ")
             charge_point_ids.append(cp_id)
-            tasks.append(asyncio.create_task(create_chargepoint(cp_id)))
+            tasks.append(asyncio.create_task(create_chargepoint(cp_id,passw,sn)))
         elif choice == '2':
             for i in range(3):
                 cp_id = f"CP2-{i+1}"
+                passw = f"pass{i+1}"
                 print(f"Creating {cp_id}")
                 charge_point_ids.append(cp_id)
-                tasks.append(asyncio.create_task(create_chargepoint(cp_id)))
+                tasks.append(asyncio.create_task(create_chargepoint(cp_id,passw)))
         elif choice == '3':
             try:
                 await asyncio.gather(*tasks)
