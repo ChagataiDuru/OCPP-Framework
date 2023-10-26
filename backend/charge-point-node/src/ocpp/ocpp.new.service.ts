@@ -1,12 +1,24 @@
-import { Logger,Injectable, OnApplicationBootstrap } from '@nestjs/common';
-import { BootNotificationRequest, BootNotificationResponse, HeartbeatRequest, HeartbeatResponse, OcppClientConnection, OcppServer,UnlockConnectorRequest,UnlockConnectorResponse } from '@extrawest/node-ts-ocpp';
-import { RabbitRPC, RabbitMQModule, AmqpConnection, Nack } from '@golevelup/nestjs-rabbitmq';
+import { Logger,Injectable, OnApplicationBootstrap, BadRequestException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+
+import { AuthorizeRequest, AuthorizeResponse, BootNotificationRequest, BootNotificationResponse, HeartbeatRequest, HeartbeatResponse, OcppClientConnection, OcppServer,UnlockConnectorRequest,UnlockConnectorResponse } from '@extrawest/node-ts-ocpp';
+import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
+
+import { Model } from 'mongoose';
+import { randomBytes,scrypt as _scrypt } from "crypto";
+import { promisify } from "util";
+
+import { ChargePoint } from './schemas/charge.point.schemas';
+import { CreateCPDto } from './dtos/create.cp.dto';
+
+const scrypt = promisify(_scrypt);
 
 @Injectable()
 export class OcppService implements OnApplicationBootstrap{
     constructor(
         private readonly MyOcppServer: OcppServer,
-        private readonly amqpConnection: AmqpConnection
+        private readonly amqpConnection: AmqpConnection,
+        @InjectModel(ChargePoint.name) private readonly chargePointModel: Model<ChargePoint>,
       ) {}
     
     private readonly logger = new Logger('OcppService2.0');
@@ -21,6 +33,50 @@ export class OcppService implements OnApplicationBootstrap{
             this.connectedChargePoints.push(client);
 
             this.logger.log(`Client ${client.getCpId()} connected`);
+
+            client.on('Authorize', async (request: AuthorizeRequest, cb: (response: AuthorizeResponse) => void) => {
+
+                this.logger.log(`Authorization request from ${client.getCpId()}, ID tag: ${request.idToken}`);
+
+                const charger = await this.findBySerialNumber(request.idToken.additionalInfo[0].additionalIdToken);
+
+                this.logger.log(`Charger: ${JSON.stringify(charger)}`);
+
+                if (charger === null) {
+                    const response: AuthorizeResponse = {
+                        idTokenInfo: {
+                            status: 'Invalid',
+                            cacheExpiryDateTime: new Date().toISOString(),
+                        },
+                    };
+                    cb(response);
+                    return;
+                }
+
+                const [salt, storedHash] = charger.password.split('.');
+                const hash = (await scrypt(request.idToken.idToken, salt, 32)) as Buffer;
+        
+                if (storedHash !== hash.toString('hex')) {
+                    const response: AuthorizeResponse = {
+                        idTokenInfo: {
+                            status: 'Invalid',
+                            cacheExpiryDateTime: new Date().toISOString(),
+                        },
+                    };
+                    cb(response);
+                    return;
+                }
+
+                const response: AuthorizeResponse = {
+                idTokenInfo: {
+                    status: 'Accepted',
+                    cacheExpiryDateTime: new Date().toISOString(),
+                  },
+                };
+        
+                this.logger.log(`Authorization request from ${client.getCpId()}, ID tag: ${request.idToken}`);
+                cb(response);
+            });
 
             client.on('close', (code: number, reason: Buffer) => {
                 this.logger.log(`Client ${client.getCpId()} closed connection`, code, reason.toString());
@@ -49,35 +105,21 @@ export class OcppService implements OnApplicationBootstrap{
         });
     }
 
-    async ChooseClient(clientId: string): Promise<OcppClientConnection> {
-        const client = this.connectedChargePoints.find((client: OcppClientConnection) => client.getCpId() === clientId);
-        if (!client) {
-            throw new Error(`Client ${clientId} not found`);
-        }
-        return client;
+    async findBySerialNumber(serial_number: any): Promise<ChargePoint> {
+        this.logger.log(`Finding charge point by serial number: ${serial_number}`);
+        return this.chargePointModel.findOne({ serial_number: serial_number }).exec();
     }
 
-    async ListConnectedChargePoints(): Promise<number> {
-        console.log('Connected charge points:');
-        for (const client of this.connectedChargePoints) {
-          this.logger.log(`- ${client.getCpId()}`);
-        }
-        return this.connectedChargePoints.length;
-    }
+    async registerChargePoint(body: CreateCPDto): Promise<ChargePoint> {
+        this.logger.log(`Registering charge point: ${JSON.stringify(body)}`);
 
-    async UnlockConnector(clientId: string): Promise<string>{
-        const client = await this.ChooseClient(clientId)
+        const salt = randomBytes(8).toString('hex');
+        const hash = (await scrypt(body.password, salt, 32)) as Buffer;
+        const result = salt + '.' + hash.toString('hex');
+        body.password = result;
+        const createdChargePoint = new this.chargePointModel(body);
 
-        const payload: UnlockConnectorRequest = {
-            connectorId: 1,
-            evseId: 1,
-        };
-        client.callRequest("UnlockConnector",payload).then((response: UnlockConnectorResponse) => {
-            console.log(response);
-            return response.status;
-        }).catch((err) => {
-            console.log(err);
-        });
-        return "error";
+        this.logger.log(`Created charge point: ${JSON.stringify(createdChargePoint)}`);
+        return createdChargePoint.save();
     }
 }

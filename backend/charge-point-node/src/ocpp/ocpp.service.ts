@@ -46,35 +46,4 @@ export class OcppService implements OnApplicationBootstrap{
     updateTransactionStatus(chargePointId: string, transactionId: string, status: string) {
         throw new Error('Method not implemented.');
     }
-
-    async ChooseClient(clientId: string): Promise<OcppClientConnection> {
-        const client = this.connectedChargePoints.find((client: OcppClientConnection) => client.getCpId() === clientId);
-        if (!client) {
-            throw new Error(`Client ${clientId} not found`);
-        }
-        return client;
-    }
-
-    async ListConnectedChargePoints(): Promise<number> {
-        console.log('Connected charge points:');
-        for (const client of this.connectedChargePoints) {
-          console.log(`- ${client.getCpId()}`);
-        }
-        return this.connectedChargePoints.length;
-    }
-
-    async UnlockConnector(clientId: string): Promise<string>{
-        const client = await this.ChooseClient(clientId)
-
-        const payload: UnlockConnectorRequest = {
-            connectorId: 1,
-        };
-        client.callRequest("UnlockConnector",payload).then((response: UnlockConnectorResponse) => {
-            console.log(response);
-            return response.status;
-        }).catch((err) => {
-            console.log(err);
-        });
-        return "error";
-    }
 }
