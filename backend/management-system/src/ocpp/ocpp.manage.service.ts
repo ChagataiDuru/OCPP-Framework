@@ -13,8 +13,7 @@ export class OcppService {
     queue: 'heartbeat_queue',
   })
   public async handleHeartbeat(msg: {},amqpMsg: ConsumeMessage) {
-    this.logger.log(`Correlation id: ${amqpMsg.properties.correlationId}`);
     this.logger.log(`Received heartbeat: ${JSON.stringify(msg)}`);
-    
   }
+  
 }

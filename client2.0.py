@@ -28,13 +28,13 @@ class ChargePoint(cp):
                     'type': 'ISO14443'
                 }]
             },
-            )
+        )
         response = await self.call(request)
         print(f"Received authorize response for {self.id}: {response}")
         if response.id_token_info['status'] == "Accepted":
             self.auth = True
             print(f"Authorized {self.id}.")
-            self.send_boot_notification()
+            await self.send_boot_notification()
         else:
             try:
                 await self._connection.close()
@@ -65,6 +65,55 @@ class ChargePoint(cp):
         if response.status == RegistrationStatusType.accepted:
             print(f"Connected to central system for {self.id}.")
             await self.send_heartbeat(response.interval)
+
+    async def send_meter_values(self):
+        print(f"Sending meter values for {self.id}.")
+        request = call.MeterValuesPayload(
+            connector_id=1,
+            transaction_id=1,
+            meter_value=[{
+                'timestamp': datetime.utcnow().isoformat(),
+                'sampled_value': [{
+                    'value': '0'
+                }]
+            }]
+        )
+        response = await self.call(request)
+        print(f"Received meter values response for {self.id}: {response}")
+
+    async def send_start_transaction(self):
+        print(f"Sending start transaction for {self.id}.")
+        request = call.TransactionEventPayload(
+            event_type="Start",
+            timestamp=datetime.utcnow().isoformat(),
+            trigger_reason="CablePluggedIn",
+            seq_no=1,
+            transaction_data={
+                'id': 1,
+                'timestamp': datetime.utcnow().isoformat(),
+                'meter_start': 0,
+                'reservation_id': 0
+            }
+        )
+        response = await self.call(request)
+        print(f"Received start transaction response for {self.id}: {response}")
+
+    async def send_stop_transaction(self):
+        print(f"Sending stop transaction for {self.id}.")
+        request = call.TransactionEventPayload(
+            event_type="Stop",
+            timestamp=datetime.utcnow().isoformat(),
+            trigger_reason="Authorized",
+            seq_no=1,
+            transaction_data={
+                'id': 1,
+                'timestamp': datetime.utcnow().isoformat(),
+                'meter_stop': 0,
+                'transaction_id': 1
+            }
+        )
+        response = await self.call(request)
+        print(f"Received stop transaction response for {self.id}: {response}")
 
     @on("UnlockConnector")
     async def on_unlock_connector(self, connector_id, evse_id, **kwargs):

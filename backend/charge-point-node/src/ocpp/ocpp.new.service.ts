@@ -1,7 +1,7 @@
 import { Logger,Injectable, OnApplicationBootstrap, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 
-import { AuthorizeRequest, AuthorizeResponse, BootNotificationRequest, BootNotificationResponse, HeartbeatRequest, HeartbeatResponse, OcppClientConnection, OcppServer,UnlockConnectorRequest,UnlockConnectorResponse } from '@extrawest/node-ts-ocpp';
+import { AuthorizeRequest, AuthorizeResponse, BootNotificationRequest, BootNotificationResponse, HeartbeatRequest, HeartbeatResponse, OcppClientConnection, OcppServer,TransactionEventRequest,TransactionEventResponse,UnlockConnectorRequest,UnlockConnectorResponse } from '@extrawest/node-ts-ocpp';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 
 import { Model } from 'mongoose';
@@ -10,6 +10,7 @@ import { promisify } from "util";
 
 import { ChargePoint } from './schemas/charge.point.schemas';
 import { CreateCPDto } from './dtos/create.cp.dto';
+import { response } from 'express';
 
 const scrypt = promisify(_scrypt);
 
@@ -66,6 +67,9 @@ export class OcppService implements OnApplicationBootstrap{
                     cb(response);
                     return;
                 }
+                
+                charger.status = 'available';
+                charger.save();
 
                 const response: AuthorizeResponse = {
                 idTokenInfo: {
@@ -74,7 +78,7 @@ export class OcppService implements OnApplicationBootstrap{
                   },
                 };
         
-                this.logger.log(`Authorization request from ${client.getCpId()}, ID tag: ${request.idToken}`);
+                this.logger.log(`Authorization request from ${client.getCpId()}, ID tag: ${JSON.stringify(request.idToken)}`);
                 cb(response);
             });
 
@@ -95,13 +99,49 @@ export class OcppService implements OnApplicationBootstrap{
                 const response: HeartbeatResponse = {
                     currentTime: new Date().toISOString(),
                 };
+
                 if (client.getCpId()) {
-                    this.logger.log(client);  
                     await this.amqpConnection.publish('management.system', 'heartbeat.routing.key', `Received heartbeat from: ${client.getCpId()} at ${new Date().toISOString()}`);
                 }
-                this.logger.log(`Heartbeat from ${client.getCpId()}, at ${response.currentTime}`);
+                
+                this.logger.log(`Heartbeat queued from ${client.getCpId()}, at ${response.currentTime}`);
                 cb(response);
             });
+
+            client.on('TransactionEvent', async (request: TransactionEventRequest, cb: (response: TransactionEventResponse) => void) => {
+                
+                this.logger.log(`TransactionEvent from ${client.getCpId()}, at ${new Date().toISOString()}, transactionId: ${request.transactionInfo.transactionId}`);
+
+                switch (request.eventType) {
+                    case 'Started':
+                        this.logger.log(`Transaction started`);
+                        const charger = await this.findBySerialNumber(client.getCpId());
+                        charger.status = 'occupied';
+                        charger.save();
+                        const response: TransactionEventResponse = {
+                            status: 'Accepted',
+                        };
+                        break;
+                    case 'Updated':
+                        this.logger.log(`Transaction updated`);
+                        break;
+                    case 'Ended':
+                        this.logger.log(`Transaction ended`);
+                        break;
+                    default:
+                        this.logger.log(`Transaction unknown`);
+                        break;
+                }
+
+                if (request.transactionInfo.chargingState === 'EVConnected') {
+                    const charger = await this.findBySerialNumber(client.getCpId());
+                    charger.status = 'available';
+                    charger.save();
+                }
+
+                cb(response);
+            });
+
         });
     }
 

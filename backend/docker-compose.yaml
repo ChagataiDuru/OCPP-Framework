@@ -69,24 +69,6 @@ services:
       - node-network
     depends_on:
       - rabbitmq 
-
-  user-service:
-    container_name: user-service
-    build:
-      context: ./user-service
-      dockerfile: Dockerfile
-    environment:
-      DATABASE_NAME: ${DATABASE_NAME}
-      DATABASE_URI: ${DATABASE_URI}
-      USER_SERVICE_HOST: ${USER_SERVICE_HOST}
-      MAIL_SERVICE_URI: ${MAIL_SERVICE_URI}
-    ports:
-      - '4002:4002'
-    volumes:
-      - ./:/usr/src/app
-    networks:
-      - node-network
-
   mail-service:
     container_name: mail-service
     build:

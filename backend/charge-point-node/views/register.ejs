@@ -6,8 +6,11 @@
     </head>
     <body>
         <div class="container">
-            <h1>Register</h1>
-            <h2><%= message %></h2>
+            <% if (message) { %>
+                <div class="alert alert-success" role="alert">
+                  <%= message %>
+                </div>
+              <% } %>
             <form action="/register" method="POST">
                 <div class="form-group">
                     <label for="description">Description</label>

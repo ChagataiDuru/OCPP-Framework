@@ -1,16 +1,25 @@
 import { MiddlewareConsumer, Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { MongooseModule } from '@nestjs/mongoose';
+import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
 import {ClientsModule, Transport} from '@nestjs/microservices';
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
-import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
 import { OcppModule } from './ocpp/ocpp.manage.module';
 
 const cookieSession = require('cookie-session');
 
 
 @Module({
-  imports: [UsersModule,OcppModule,    
+  imports: [UsersModule,OcppModule,
+    ConfigModule.forRoot(),
+    MongooseModule.forRoot(
+      "mongodb://localhost:27017", 
+      {
+        dbName: process.env.DATABASE_NAME,
+      }),    
     RabbitMQModule.forRoot(RabbitMQModule, {
     exchanges: [
       {
