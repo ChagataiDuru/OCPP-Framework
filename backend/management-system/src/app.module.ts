@@ -2,12 +2,12 @@ import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
-import {ClientsModule, Transport} from '@nestjs/microservices';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { OcppModule } from './ocpp/ocpp.manage.module';
+import { AuthModule } from './auth/auth.module';
 
 const cookieSession = require('cookie-session');
 
@@ -28,7 +28,7 @@ const cookieSession = require('cookie-session');
       },
     ],
     uri: 'amqp://csms:csms@localhost:5672',
-  }),],
+  }), AuthModule,],
   controllers: [AppController],
   providers: [AppService],
 })
