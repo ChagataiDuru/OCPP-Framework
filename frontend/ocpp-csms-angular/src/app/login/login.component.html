@@ -1,4 +1,18 @@
-<div *ngIf="!authStore.get().token">
-    <button (click)="login()">Login</button>
+<html>
+<app-home>
+  <div>
+    <h2>Login</h2>
+    <form (ngSubmit)="login()">
+      <div>
+        <label for="username">Username:</label>
+        <!-- <input type="text" id="username" [(ngModel)]="credentials.username" required> -->
+      </div>
+      <div>
+        <label for="password">Password:</label>
+        <!-- <input type="password" id="password" [(ngModel)]="credentials.password" required> -->
+      </div>
+      <button type="submit">Login</button>
+    </form>
   </div>
-  
+</app-home>
+</html>

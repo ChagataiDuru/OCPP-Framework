@@ -1,8 +1,7 @@
 // home.component.ts
 import { Component, OnInit } from '@angular/core';
 import { ChargeStationService } from '../charge-station.service'; // Create this service to fetch charge station data
-import { ChartDataset, ChartOptions, ChartType } from 'chart.js';
-import { BaseChartDirective } from 'ng2-charts';
+import { ChartData, ChartOptions, ChartType } from 'chart.js';
 
 
 @Component({
@@ -14,8 +13,16 @@ export class HomeComponent implements OnInit {
   public pieChartOptions: ChartOptions = {
     responsive: true,
   };
-  public pieChartLabels: BaseChartDirective["labels"] = ['Online', 'In Use', 'Offline'];
-  public pieChartData: ChartDataset[] = [{ data: [0, 0, 0], backgroundColor: ['#36A2EB', '#FFCE56', '#FF6384'] }];
+  public pieChartLabels: string[] = ['Online', 'In Use', 'Offline'] as string[];
+  public pieChartData: ChartData<'pie', number[], string> = {
+    labels: this.pieChartLabels,
+    datasets: [
+      {
+        data: [0, 0, 0],
+        backgroundColor: ['#36A2EB', '#FFCE56', '#FF6384'],
+      },
+    ],
+  };
   public pieChartType: ChartType = 'pie';
   public pieChartLegend = true;
   public pieChartPlugins = [];
@@ -33,6 +40,5 @@ export class HomeComponent implements OnInit {
     const inUseCount = data.filter((station: any) => station.status === 'inuse').length;
     const offlineCount = data.filter((station: any) => station.status === 'offline').length;
 
-    this.pieChartData[0].data = [onlineCount, inUseCount, offlineCount];
-  }
+    this.pieChartData.datasets[0].data = [onlineCount, inUseCount, offlineCount];  }
 }

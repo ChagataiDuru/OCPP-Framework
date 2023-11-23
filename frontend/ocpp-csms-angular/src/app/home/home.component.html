@@ -1,9 +1,27 @@
-<!-- home.component.html -->
-<div>
-    <div style="display: block">
-      <canvas baseChart [data]="pieChartData" [labels]="pieChartLabels" [chartType]="pieChartType"
-        [options]="pieChartOptions" [legend]="pieChartLegend" [plugins]="pieChartPlugins">
-      </canvas>
+<div class="dashboard">
+    <h1>Charge Station Management System</h1>
+    <div class="summary">
+        <div class="summary-item">
+        <h2>Locations</h2>
+        <p>20</p>
+        </div>
+        <div class="summary-item">
+        <h2>Stations</h2>
+        <p>54</p>
+        </div>
+        <div class="summary-item">
+        <h2>Transactions</h2>
+        <p>Offline</p>
+        </div>
     </div>
-  </div>
-  
+    <div class="chart">
+        <canvas baseChart
+        [data]="pieChartData"
+        [type]="pieChartType"
+        [labels]="pieChartLabels"
+        [options]="pieChartOptions"
+        [plugins]="pieChartPlugins"
+        [legend]="pieChartLegend">
+        </canvas>
+    </div>
+</div>

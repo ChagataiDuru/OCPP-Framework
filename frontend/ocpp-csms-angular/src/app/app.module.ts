@@ -8,6 +8,7 @@ import { AppRoutingModule } from './app.routes';
 import { AppComponent } from './app.component';
 import { HomeComponent } from './home/home.component';
 import { LoginComponent } from './login/login.component';
+import { ToastrModule } from 'ngx-toastr';
 
 
 @NgModule({
@@ -21,6 +22,9 @@ import { LoginComponent } from './login/login.component';
     AppRoutingModule,
     NgChartsModule,
     HttpClientModule,
+    ToastrModule.forRoot({
+      positionClass :'toast-bottom-right'
+    })
   ],
   providers: [],
   bootstrap: [AppComponent],
