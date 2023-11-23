@@ -15,7 +15,7 @@ export class AuthGuard {
   ): Observable<boolean | UrlTree> | Promise<boolean | UrlTree> | boolean | UrlTree => {
     const isLoggedIn = this.authService.isLoggedIn();
     if (!isLoggedIn) {
-      this.router.navigate(['/login']);
+      this.router.navigate(['login']);
     }
     return isLoggedIn;
   };

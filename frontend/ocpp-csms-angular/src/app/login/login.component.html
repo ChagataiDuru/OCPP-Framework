@@ -1,18 +1,10 @@
 <html>
-<app-home>
-  <div>
-    <h2>Login</h2>
-    <form (ngSubmit)="login()">
-      <div>
-        <label for="username">Username:</label>
-        <!-- <input type="text" id="username" [(ngModel)]="credentials.username" required> -->
-      </div>
-      <div>
-        <label for="password">Password:</label>
-        <!-- <input type="password" id="password" [(ngModel)]="credentials.password" required> -->
-      </div>
-      <button type="submit">Login</button>
-    </form>
-  </div>
-</app-home>
+<div>
+  <h2>Login</h2>
+  <form (ngSubmit)="login()" #loginForm="ngForm">
+    <div class="input-container"><label for="email">Username : </label><input type="email" autocomplete="email" [ngModel]="credentials.username" id="email" name="email"><br></div>
+    <div class="input-container"><label for="pass">Password : </label><input type="password" autocomplete="password" [ngModel]="credentials.password" id="pass" name="pass"></div><br>
+    <div class="input-container"><input class="submit-button" type="submit" (click)="login()" value="login" name="login" id="login"></div>
+  </form>
+</div>
 </html>
