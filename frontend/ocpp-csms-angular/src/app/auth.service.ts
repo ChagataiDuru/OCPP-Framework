@@ -25,10 +25,10 @@ export class AuthService {
   private apiUrl = this.configService.getApiUrl();
 
   login(credentials: any): void {
-    this.http.post(`${this.apiUrl}/login`, credentials).pipe(
+    this.http.post(`${this.apiUrl}/auth/login`, credentials).pipe(
       catchError(error => {
         console.error('Login failed', error);
-        this.toastr.error('Login failed. Please check your credentials and try again.');
+        this.toastr.error('Login failed. Please check your credentials and try again.',JSON.stringify(error));
         return throwError(() => error);
       })
     ).subscribe(

@@ -10,6 +10,8 @@ import { HomeComponent } from './home/home.component';
 import { LoginComponent } from './login/login.component';
 import { ToastrModule } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
+import { SidebarModule } from './sidebar/sidebar.module';
+import { DashboardComponent } from './dashboard/dashboard.component';
 
 
 @NgModule({
@@ -17,6 +19,7 @@ import { FormsModule } from '@angular/forms';
     AppComponent,
     HomeComponent,
     LoginComponent,
+    DashboardComponent,
   ],
   imports: [
     BrowserModule,
@@ -24,6 +27,7 @@ import { FormsModule } from '@angular/forms';
     NgChartsModule,
     HttpClientModule,
     FormsModule,
+    SidebarModule,
     ToastrModule.forRoot({
       positionClass :'toast-bottom-right'
     })

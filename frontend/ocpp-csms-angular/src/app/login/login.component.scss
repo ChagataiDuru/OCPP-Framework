@@ -1,0 +1,36 @@
+.navbar {
+  background-color: #f8f8f8;
+  color: #333;
+  padding: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand {
+  font-size: 20px;
+  font-weight: bold;
+  color: #333;
+}
+
+.navbar-nav {
+  margin-left: auto;
+}
+
+.nav-link {
+  color: #333;
+  margin-left: 15px;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.nav-link:hover {
+  color: #666;
+}
+
+.navbar-toggler {
+  border-color: #333;
+}
+
+.navbar-toggler-icon {
+  background-color: #333;
+}
+
