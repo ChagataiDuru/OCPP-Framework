@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
 export type User = any;
@@ -25,16 +25,22 @@ export class AuthService {
     }
 
     async login(username: string, password: string): Promise<string> {
-        const isValid = await this.validateUser(username, password);
-        if (!isValid) {
-            throw new Error('Invalid username or password');
+        const user = await this.validateUser(username, password);
+        if (!user) {
+            throw new HttpException('Invalid username or password', HttpStatus.BAD_REQUEST);
         }
         const payload = { username };
         return this.jwtService.sign(payload);
     }
 
-    private async validateUser(username: string, password: string): Promise<boolean> {
+    private async validateUser(username: string, password: string): Promise<User | undefined> {
         const user = await this.findOne(username);
-        return user && user.password === password;
+        if (!user) {
+            throw new HttpException('User not found', HttpStatus.BAD_REQUEST);
+        }
+        if (user.password !== password) {
+            throw new HttpException('Invalid password', HttpStatus.BAD_REQUEST);
+        }
+        return user;
     }
 }
