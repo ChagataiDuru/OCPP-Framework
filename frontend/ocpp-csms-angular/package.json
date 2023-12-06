@@ -24,6 +24,7 @@
     "@angular/ssr": "^17.0.2",
     "@ng-bootstrap/ng-bootstrap": "^16.0.0",
     "@ngneat/elf": "^2.4.0",
+    "@ngneat/elf-persist-state": "^1.2.0",
     "@popperjs/core": "^2.11.8",
     "bootstrap": "^5.3.2",
     "bootstrap-notify": "^3.1.3",

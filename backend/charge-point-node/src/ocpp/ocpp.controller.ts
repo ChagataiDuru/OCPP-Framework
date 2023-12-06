@@ -8,10 +8,10 @@ export class OcppController {
 
   @Get()
   @Render('register')
-  root(@Req() req: Request, @Session() session: Record<string, any>) {
-    const message = "Register your charge point"
-    if (session.successMessage) {
-      const message = session.successMessage;
+  root(@Req() req: Request, @Session() session: { successMessage?: string }) {
+    let message = "Register your charge point";
+    if (session && session.successMessage) {
+      message = session.successMessage;
       delete session.successMessage;
     }
     return { message };
@@ -19,7 +19,7 @@ export class OcppController {
 
   @Post()
   @Redirect('/register')
-  async register(@Body() body: any, @Session() session: Record<string, any>): Promise<void> {
+  async register(@Body() body: any, @Session() session: { successMessage?: string }): Promise<void> {
     await this.ocpp2Service.registerChargePoint(body);
     session.successMessage = 'Registration successful';
   }

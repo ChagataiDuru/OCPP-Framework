@@ -11,6 +11,7 @@ import { ToastrModule } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { SidebarModule } from './sidebar/sidebar.module';
 import { DashboardComponent } from './dashboard/dashboard.component';
+import { NavbarModule } from './navbar/navbar.module';
 
 
 @NgModule({
@@ -26,6 +27,7 @@ import { DashboardComponent } from './dashboard/dashboard.component';
     HttpClientModule,
     FormsModule,
     SidebarModule,
+    NavbarModule,
     ToastrModule.forRoot({
       positionClass :'toast-bottom-right'
     })

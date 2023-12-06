@@ -10,7 +10,6 @@ import { promisify } from "util";
 
 import { ChargePoint } from './schemas/charge.point.schemas';
 import { CreateCPDto } from './dtos/create.cp.dto';
-import { response } from 'express';
 
 const scrypt = promisify(_scrypt);
 
@@ -111,16 +110,16 @@ export class OcppService implements OnApplicationBootstrap{
             client.on('TransactionEvent', async (request: TransactionEventRequest, cb: (response: TransactionEventResponse) => void) => {
                 
                 this.logger.log(`TransactionEvent from ${client.getCpId()}, at ${new Date().toISOString()}, transactionId: ${request.transactionInfo.transactionId}`);
-
+                const response: TransactionEventResponse = {
+                    totalCost: 0,
+                };
                 switch (request.eventType) {
                     case 'Started':
                         this.logger.log(`Transaction started`);
                         const charger = await this.findBySerialNumber(client.getCpId());
                         charger.status = 'occupied';
                         charger.save();
-                        const response: TransactionEventResponse = {
-                            status: 'Accepted',
-                        };
+                        response.totalCost = 0;
                         break;
                     case 'Updated':
                         this.logger.log(`Transaction updated`);

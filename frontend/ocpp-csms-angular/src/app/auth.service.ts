@@ -1,23 +1,31 @@
 // auth.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { createStore, withProps } from '@ngneat/elf';
-import { throwError, of, Observable } from 'rxjs';
-import { catchError, tap } from 'rxjs/operators';
 import { ToastrService } from 'ngx-toastr';
 
+import { createStore, withProps, select } from '@ngneat/elf';
+import {
+  persistState,
+  localStorageStrategy,
+  sessionStorageStrategy,
+} from '@ngneat/elf-persist-state';
+import { throwError, of, Observable } from 'rxjs';
+import { catchError, tap } from 'rxjs/operators';
+
 import { ConfigService } from './config.service';
-import { Router } from '@angular/router';
-import { response } from 'express';
 
 interface AuthProps {
-  token: { id: string } | null;
+  user: { id: string } | null;
 }
 
-const authStore = createStore(
-  { name: 'auth' },
-  withProps<AuthProps>({ token: null })
-);
+const authStore = createStore({ name: 'auth' }, withProps<AuthProps>({ user: null }));
+
+export const persist = persistState(authStore, {
+  key: 'auth',
+  storage: localStorageStrategy,
+});
+
+export const user$ = authStore.pipe(select((state) => state.user));
 
 @Injectable({
   providedIn: 'root',
@@ -31,10 +39,11 @@ login(credentials: any): Observable<any> {
     tap((response: any) => {
       authStore.update((state) => ({
         ...state,
-        token: { id: response },
+        user: { id: response },
       }));
       console.log('Login successful', response);
-      localStorage.setItem('token', response);
+      console.log('authStore', authStore.getValue());
+      localStorage.setItem('user', response);
     }),
     catchError(error => {
       console.error('Login failed', error);
@@ -47,20 +56,13 @@ login(credentials: any): Observable<any> {
   logout(): void {
     authStore.update((state) => ({
       ...state,
-      token: null,
+      user: null,
       }));
-    localStorage.removeItem('token');
+    localStorage.removeItem('user');
   }
 
-  isLoggedIn(): boolean {
-    authStore.subscribe((state) => {
-      console.log('Checking if user is logged in', state);
-      console.log(state.token?.id);
-      const token = localStorage.getItem('token');
-      console.log(token);
-      return token !== null;
-    });
-    return false;
+  isLoggedIn(): Observable<boolean> {
+    return authStore.pipe(select((state) => !!state.user?.id));
   }
   
 }

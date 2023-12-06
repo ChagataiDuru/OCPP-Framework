@@ -29,8 +29,10 @@
     "@typegoose/auto-increment": "^3.6.1",
     "amqp-connection-manager": "^4.1.14",
     "amqplib": "^0.10.3",
+    "class-validator": "^0.14.0",
     "ejs": "^3.1.9",
     "mongoose": "^7.6.3",
+    "nestjs-session": "^3.0.1",
     "ocpp-ts": "^0.3.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1"
