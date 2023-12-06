@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Dashboard</title>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    </head>
+    <body>
+        <div class="container">
+            <div class="row">
+                <% chargers.forEach(function(charger) { %>
+                    <div class="col-lg-4 col-md-6 col-sm-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title"><%= charger.description %></h5>
+                                <p class="card-text">
+                                    Status: <%= charger.status %><br>
+                                    Manufacturer: <%= charger.manufacturer %><br>
+                                    Latitude: <%= charger.latitude %><br>
+                                    Longitude: <%= charger.longitude %><br>
+                                    Serial Number: <%= charger.serial_number %><br>
+                                    Comment: <%= charger.comment %><br>
+                                    Model: <%= charger.cpmodel %>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        </div>
+        <!-- Bootstrap JS -->
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    </body>
+</html>

@@ -1,10 +1,21 @@
-import { Controller, Get, Inject, NotFoundException, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Logger, NotFoundException, Param, UseGuards } from '@nestjs/common';
 import { Serialize } from 'src/interceptors/serialize.interceptor';
 import { OcppDto } from './dtos/ocpp.dto';
-import { AdminGuard } from 'src/guards/admin.guard';
+import { OcppService } from './ocpp.manage.service';
 
-@Controller('ocpp')
+@Controller()
 @Serialize(OcppDto)
 export class OcppController {
+    private readonly logger = new Logger('OcppManagerController');
 
+    constructor(
+        private readonly ocppService: OcppService,
+    ) {}
+
+    @Get('/chargers')
+    async getAllChargePoints(): Promise<OcppDto[]> {
+        this.logger.log(`Getting all charge points`);
+        const chargers = await this.ocppService.getAllChargePoints();
+        return chargers;
+    }
 }

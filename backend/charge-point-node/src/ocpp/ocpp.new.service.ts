@@ -1,10 +1,11 @@
-import { Logger,Injectable, OnApplicationBootstrap, BadRequestException } from '@nestjs/common';
+import { Logger,Injectable, OnApplicationBootstrap, BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 
 import { AuthorizeRequest, AuthorizeResponse, BootNotificationRequest, BootNotificationResponse, HeartbeatRequest, HeartbeatResponse, OcppClientConnection, OcppServer,TransactionEventRequest,TransactionEventResponse,UnlockConnectorRequest,UnlockConnectorResponse } from '@extrawest/node-ts-ocpp';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 
 import { Model } from 'mongoose';
+import { MongoError } from 'mongodb';
 import { randomBytes,scrypt as _scrypt } from "crypto";
 import { promisify } from "util";
 
@@ -15,6 +16,7 @@ const scrypt = promisify(_scrypt);
 
 @Injectable()
 export class OcppService implements OnApplicationBootstrap{
+
     constructor(
         private readonly MyOcppServer: OcppServer,
         private readonly amqpConnection: AmqpConnection,
@@ -149,16 +151,28 @@ export class OcppService implements OnApplicationBootstrap{
         return this.chargePointModel.findOne({ serial_number: serial_number }).exec();
     }
 
+
     async registerChargePoint(body: CreateCPDto): Promise<ChargePoint> {
-        this.logger.log(`Registering charge point: ${JSON.stringify(body)}`);
+    this.logger.log(`Registering charge point: ${JSON.stringify(body)}`);
 
-        const salt = randomBytes(8).toString('hex');
-        const hash = (await scrypt(body.password, salt, 32)) as Buffer;
-        const result = salt + '.' + hash.toString('hex');
-        body.password = result;
-        const createdChargePoint = new this.chargePointModel(body);
+    const salt = randomBytes(8).toString('hex');
+    const hash = (await scrypt(body.password, salt, 32)) as Buffer;
+    const result = salt + '.' + hash.toString('hex');
+    body.password = result;
+    const createdChargePoint = new this.chargePointModel(body);
 
-        this.logger.log(`Created charge point: ${JSON.stringify(createdChargePoint)}`);
-        return createdChargePoint.save();
+        try {
+            return await createdChargePoint.save();
+        } catch (error) {
+            if (error instanceof MongoError && error.code === 11000) {
+                throw new HttpException('Charge point with this serial number already exists', HttpStatus.CONFLICT);
+            }
+            throw error;
+        }
     }
+
+    async getAllChargePoints() {
+        return this.chargePointModel.find().exec();
+    }
+
 }
