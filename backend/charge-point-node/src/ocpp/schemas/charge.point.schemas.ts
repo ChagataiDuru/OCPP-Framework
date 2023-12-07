@@ -31,6 +31,9 @@ export class ChargePoint extends Document {
   @Prop({ required: true })
   cpmodel: string;
 
+  @Prop({ type: String, enum: ['1.6','2.0'], default: '1.6', index: true })
+  ocppVersion: string;
+
   @Prop()
   password: string;
 

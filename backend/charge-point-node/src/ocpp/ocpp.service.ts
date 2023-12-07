@@ -1,24 +1,26 @@
 import { Logger,Injectable, OnApplicationBootstrap } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { BootNotificationRequest, BootNotificationResponse, HeartbeatRequest, HeartbeatResponse, OcppClientConnection, OcppServer,UnlockConnectorRequest,UnlockConnectorResponse } from 'ocpp-ts';
-import { on } from 'events';
+import { Model } from 'mongoose';
+
+import { ChargePoint } from './schemas/charge.point.schemas';
 
 @Injectable()
 export class OcppService implements OnApplicationBootstrap{
     constructor(
-        private readonly MyOcppServer: OcppServer
+        private readonly MyOcppServer: OcppServer,
+        private readonly amqpConnection: AmqpConnection,
+        @InjectModel(ChargePoint.name) private readonly chargePointModel: Model<ChargePoint>,
       ) {}
     
     private readonly logger = new Logger(OcppService.name);
-    private readonly connectedChargePoints: OcppClientConnection[] = [];
 
     async onApplicationBootstrap() {
         this.MyOcppServer.listen(9210);
         this.logger.log('Server1.6 listening on port 9210');
         
         this.MyOcppServer.on('connection', (client: OcppClientConnection) => {
-
-            this.connectedChargePoints.push(client);
-
             this.logger.log(`Client ${client.getCpId()} connected`);
 
             client.on('close', (code: number, reason: Buffer) => {
@@ -26,6 +28,8 @@ export class OcppService implements OnApplicationBootstrap{
             });
         
             client.on('BootNotification', (request: BootNotificationRequest, cb: (response: BootNotificationResponse) => void) => {
+                const serial_number = request.chargePointSerialNumber;
+                
                 const response: BootNotificationResponse = {
                     status: 'Accepted',
                     currentTime: new Date().toISOString(),
@@ -33,11 +37,17 @@ export class OcppService implements OnApplicationBootstrap{
                 };
                 cb(response);
             });
-            client.on('Heartbeat', (request: HeartbeatRequest, cb: (response: HeartbeatResponse) => void) => {
+            client.on('Heartbeat', async (request: HeartbeatRequest, cb: (response: HeartbeatResponse) => void) => {
                 const response: HeartbeatResponse = {
                     currentTime: new Date().toISOString(),
                 };
-                this.logger.log(`Heartbeat from ${client.getCpId()}, at ${response.currentTime}`);
+
+                if (client.getCpId()) {
+                    // TODO: update message add charge point id
+                    await this.amqpConnection.publish('management.system', 'heartbeat.routing.key', `Received heartbeat from: ${client.getCpId()} at ${new Date().toISOString()}`);
+                }
+                
+                this.logger.log(`Heartbeat queued from ${client.getCpId()}, at ${response.currentTime}`);
                 cb(response);
             });
         });

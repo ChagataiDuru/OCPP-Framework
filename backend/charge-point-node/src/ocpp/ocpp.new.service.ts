@@ -36,57 +36,6 @@ export class OcppService implements OnApplicationBootstrap{
 
             this.logger.log(`Client ${client.getCpId()} connected`);
 
-            client.on('Authorize', async (request: AuthorizeRequest, cb: (response: AuthorizeResponse) => void) => {
-
-                this.logger.log(`Authorization request from ${client.getCpId()}, ID tag: ${request.idToken}`);
-
-                const charger = await this.findBySerialNumber(request.idToken.additionalInfo[0].additionalIdToken);
-
-                this.logger.log(`Charger: ${JSON.stringify(charger)}`);
-
-                if (charger === null) {
-                    const response: AuthorizeResponse = {
-                        idTokenInfo: {
-                            status: 'Invalid',
-                            cacheExpiryDateTime: new Date().toISOString(),
-                        },
-                    };
-                    cb(response);
-                    return;
-                }
-
-                const [salt, storedHash] = charger.password.split('.');
-                const hash = (await scrypt(request.idToken.idToken, salt, 32)) as Buffer;
-        
-                if (storedHash !== hash.toString('hex')) {
-                    const response: AuthorizeResponse = {
-                        idTokenInfo: {
-                            status: 'Invalid',
-                            cacheExpiryDateTime: new Date().toISOString(),
-                        },
-                    };
-                    cb(response);
-                    return;
-                }
-                
-                charger.status = 'available';
-                charger.save();
-
-                const response: AuthorizeResponse = {
-                idTokenInfo: {
-                    status: 'Accepted',
-                    cacheExpiryDateTime: new Date().toISOString(),
-                  },
-                };
-        
-                this.logger.log(`Authorization request from ${client.getCpId()}, ID tag: ${JSON.stringify(request.idToken)}`);
-                cb(response);
-            });
-
-            client.on('close', (code: number, reason: Buffer) => {
-                this.logger.log(`Client ${client.getCpId()} closed connection`, code, reason.toString());
-            });
-        
             client.on('BootNotification', (request: BootNotificationRequest, cb: (response: BootNotificationResponse) => void) => {
                 const response: BootNotificationResponse = {
                     status: 'Accepted',
@@ -96,6 +45,11 @@ export class OcppService implements OnApplicationBootstrap{
                 this.logger.log(`BootNotification from ${client.getCpId()}, at ${response.currentTime}, heartbeat interval ${response.interval}`);
                 cb(response);
             });
+
+            client.on('close', (code: number, reason: Buffer) => {
+                this.logger.log(`Client ${client.getCpId()} closed connection`, code, reason.toString());
+            });
+
             client.on('Heartbeat', async (request: HeartbeatRequest, cb: (response: HeartbeatResponse) => void) => {
                 const response: HeartbeatResponse = {
                     currentTime: new Date().toISOString(),
