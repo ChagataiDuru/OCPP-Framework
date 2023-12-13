@@ -1,6 +1,16 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
+export enum ConnectorType {
+  ACType1 = 'AC Type1',
+  ACType2 = 'AC Type2',
+  ACGT = 'AC GB/T',
+  DCCSS = 'DC CSS',
+  DCCSS2 = 'DC CSS 2',
+  CHAdeMO = 'CHAdeMO',
+  DCGT = 'DC GB/T'
+}
+
 @Schema()
 export class ChargePoint extends Document {
 
@@ -37,8 +47,11 @@ export class ChargePoint extends Document {
   @Prop()
   password: string;
 
-  @Prop({ type: Map, default: {} })
-  connectors: Record<string, any>;
+  @Prop({ type: [String], enum: Object.values(ConnectorType), default: [] })
+  connectors: ConnectorType[];
+
+  @Prop({ type: Date, default: Date.now })
+  lastActivity: Date;
 }
 
 export const ChargePointSchema = SchemaFactory.createForClass(ChargePoint);

@@ -3,6 +3,15 @@
     <head>
         <title>Register</title>
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+        <style>
+            #connectors {
+                display: flex;
+                flex-wrap: wrap;
+            }
+            .connector {
+                margin-right: 10px;
+            }
+        </style>
     </head>
     <body>
         <div class="container">
@@ -17,16 +26,37 @@
                     <input type="text" class="form-control" id="description" name="description" required>
                 </div>
                 <div class="form-group">
-                    <label for="status">Status</label>
-                    <select class="form-control" id="status" name="status" required>
-                        <option value="unavailable">Unavailable</option>
-                        <option value="available">Available</option>
-                        <option value="occupied">Occupied</option>
+                    <label for="version">Version</label>
+                    <select class="form-control" id="version" name="version" required>
+                        <option value="1.6">1.6</option>
+                        <option value="2.0">2.0</option>
                     </select>
+                </div>
+                <div class="form-group">
+                    <label for="connectors">Connectors</label>
+                    <div id="connectors">
+                        <div class="connector">
+                            <select class="form-control" name="connectors">
+                                <option value="AC Type1">AC Type1</option>
+                                <option value="AC Type2">AC Type2</option>
+                                <option value="AC GB/T">AC GB/T</option>
+                                <option value="DC CSS">DC CSS</option>
+                                <option value="DC CSS 2">DC CSS 2</option>
+                                <option value="CHAdeMO">CHAdeMO</option>
+                                <option value="DC GB/T">DC GB/T</option>
+                            </select>
+                            <button type="button" class="btn btn-danger remove-connector">Remove</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary" id="add-connector">Add Connector</button>
                 </div>
                 <div class="form-group">
                     <label for="manufacturer">Manufacturer</label>
                     <input type="text" class="form-control" id="manufacturer" name="manufacturer" required>
+                </div>
+                <div class="form-group">
+                    <label for="serial_number">Serial Number</label>
+                    <input type="text" class="form-control" id="serial_number" name="serial_number" required>
                 </div>
                 <div class="form-group">
                     <label for="latitude">Latitude</label>
@@ -35,10 +65,6 @@
                 <div class="form-group">
                     <label for="longitude">Longitude</label>
                     <input type="number" step="any" class="form-control" id="longitude" name="longitude">
-                </div>
-                <div class="form-group">
-                    <label for="serial_number">Serial Number</label>
-                    <input type="text" class="form-control" id="serial_number" name="serial_number" required>
                 </div>
                 <div class="form-group">
                     <label for="comment">Comment</label>
@@ -59,6 +85,19 @@
         <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script>
         <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+        <script>
+            document.getElementById('add-connector').addEventListener('click', function() {
+                var connectorsDiv = document.getElementById('connectors');
+                var newConnector = connectorsDiv.children[0].cloneNode(true);
+                connectorsDiv.appendChild(newConnector);
+            });
+
+            document.getElementById('connectors').addEventListener('click', function(e) {
+                if (e.target.classList.contains('remove-connector')) {
+                    e.target.parentElement.remove();
+                }
+            });
+        </script>
     </body>
 </html>
 

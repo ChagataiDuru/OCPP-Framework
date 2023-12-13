@@ -1,10 +1,9 @@
-import { Controller, Get, Inject, Logger, NotFoundException, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Logger, NotFoundException, Param, Res, UseGuards } from '@nestjs/common';
 import { Serialize } from 'src/interceptors/serialize.interceptor';
-import { OcppDto } from './dtos/ocpp.dto';
 import { OcppService } from './ocpp.manage.service';
+import { Response } from 'express';
 
 @Controller()
-@Serialize(OcppDto)
 export class OcppController {
     private readonly logger = new Logger('OcppManagerController');
 
@@ -13,9 +12,21 @@ export class OcppController {
     ) {}
 
     @Get('/chargers')
-    async getAllChargePoints(): Promise<OcppDto[]> {
+    async getAllChargePoints(): Promise<any[]> {
         this.logger.log(`Getting all charge points`);
         const chargers = await this.ocppService.getAllChargePoints();
         return chargers;
+    }
+
+    @Get('/heartbeat')
+    sendHeartbeat(@Res() res: Response) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
+  
+      this.ocppService.heartbeatEvent.on('heartbeat', (msg) => {
+        res.write(`data: ${JSON.stringify(msg)}\n\n`);
+      });
     }
 }

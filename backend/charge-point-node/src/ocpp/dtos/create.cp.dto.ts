@@ -1,5 +1,6 @@
 
 import { IsNumber, IsString, IsEnum, IsNotEmpty, IsOptional, IsLatitude, IsLongitude, IsObject } from 'class-validator';
+import { ConnectorType } from '../schemas/charge.point.schemas';
 
 export class CreateCPDto {
 
@@ -41,6 +42,6 @@ export class CreateCPDto {
   password: string;
 
   @IsOptional()
-  @IsObject()
-  connectors: Record<string, any>;
+  @IsEnum(ConnectorType, { each: true })
+  connectors: ConnectorType[];
 }

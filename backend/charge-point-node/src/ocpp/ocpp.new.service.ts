@@ -113,6 +113,7 @@ export class OcppService implements OnApplicationBootstrap{
     const hash = (await scrypt(body.password, salt, 32)) as Buffer;
     const result = salt + '.' + hash.toString('hex');
     body.password = result;
+    body.status = 'unavailable';
     const createdChargePoint = new this.chargePointModel(body);
 
         try {

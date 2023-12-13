@@ -1,11 +1,8 @@
-import random
-import string
-import threading
-from datetime import datetime
-
-import asyncio
 import sys
+import threading
+import asyncio
 import websockets
+from datetime import datetime
 
 import tkinter as tk
 from tkinter import ttk
@@ -16,20 +13,26 @@ from ocpp.v16 import call, call_result
 from ocpp.v16.enums import RegistrationStatus, Action, AuthorizationStatus, RemoteStartStopStatus
 
 class MyChargePoint(cp):
-    async def send_boot_notification(self):
+    interval:int = 60
+    async def send_boot_notification(self, serial_number):
         request = call.BootNotificationPayload(
             charge_point_model="AVT-Express",
             charge_point_vendor="AVT-Company",
-            # TODO: Send Serial Number
+            charge_point_serial_number=serial_number,
         )
-        response = await self.call(request)
-        return response.status
-
+        try:
+            response: call_result.BootNotificationPayload = await self.call(request)
+            self.interval = response.interval
+            return response.status == RegistrationStatus.accepted
+        except websockets.exceptions.ConnectionClosed as e:
+            print(f"Connection closed: {e}")
+            return False
+        
     async def send_authorize(self, id_tag):
         request = call.AuthorizePayload(
             id_tag=id_tag
         )
-        response = await self.call(request)
+        response: call_result.AuthorizePayload = await self.call(request)
         return response.id_tag_info.status
 
     async def send_start_transaction(self, connector_id, id_tag, meter_start):
@@ -39,7 +42,7 @@ class MyChargePoint(cp):
             meter_start=meter_start,
             timestamp=datetime.utcnow().isoformat()
         )
-        response = await self.call(request)
+        response: call_result.StartTransactionPayload = await self.call(request)
         return response.id_tag_info.status
 
     async def send_stop_transaction(self, transaction_id, meter_stop):
@@ -48,13 +51,17 @@ class MyChargePoint(cp):
             timestamp=datetime.utcnow().isoformat(),
             transaction_id=transaction_id
         )
-        response = await self.call(request)
+        response: call_result.StopTransactionPayload = await self.call(request)
         return response.id_tag_info.status
 
     async def send_heartbeat(self):
+        print(f"Sending heartbeat for {self.id}.")
         request = call.HeartbeatPayload()
-        response = await self.call(request)
-        return response.current_time
+        while True:
+            await self.call(request)
+            await asyncio.sleep(self.interval)
+            print(f"Received heartbeat response for {self.id}.")
+
 
     async def send_meter_values(self, connector_id, transaction_id, meter_value):
         request = call.MeterValuesPayload(
@@ -94,8 +101,17 @@ class MyChargePoint(cp):
             message_id=message_id,
             data=data
         )
-        response = await self.call(request)
+        response: call_result.DataTransferPayload = await self.call(request)
         return response.status
+
+class TextRedirector:
+    def __init__(self, widget, tag="stdout"):
+        self.widget = widget
+        self.tag = tag
+
+    def write(self, str):
+        self.widget.insert(tk.END, str, (self.tag,))
+        self.widget.see(tk.END)
 
 class OCPPSimulatorGUI:
     def __init__(self, root):
@@ -103,9 +119,15 @@ class OCPPSimulatorGUI:
         self.root.title("OCPP Simulator")
         
         self.charge_point: MyChargePoint = None
+        self.serials = {
+            "OCM-172990": "ZES-Ataşehir",
+            "OCM-172991": "ZES-Ümraniye",
+            "OCM-172992": "ZES-Kadıköy",
+            "OCM-172993": "ZES-Kartal",
+        }
         self.create_widgets()
 
-        #sys.stdout = ConsoleOutput(self.console)
+        #sys.stdout = TextRedirector(self.console, "stdout")
 
     def create_widgets(self):
         # Title
@@ -119,8 +141,16 @@ class OCPPSimulatorGUI:
         # Central Station
         central_station_label = tk.Label(self.root, text="Central Station")
         central_station_label.pack()
-        self.central_station_entry = tk.Entry(self.root)
+        text = tk.StringVar() 
+        text.set("ws://localhost:9210/CP_1") 
+        self.central_station_entry = tk.Entry(self.root,textvariable=text)
         self.central_station_entry.pack()
+
+        # Charge Station Serial Number
+        charge_station_serial_label = tk.Label(self.root, text="Charge Station Serial Number")
+        charge_station_serial_label.pack()
+        self.central_station_serial_combobox = ttk.Combobox(self.root, values=[key for key in self.serials])
+        self.central_station_serial_combobox.pack()
 
         # Tag
         tag_label = tk.Label(self.root, text="Tag")
@@ -201,77 +231,108 @@ class OCPPSimulatorGUI:
         data_transfer_button.pack()
 
         # Console
-        self.console = ScrolledText(self.root, bg="black", fg="white", state='disabled')
-        self.console.pack(fill="both", expand=True)
+        self.console = ScrolledText(self.root, state="disabled", height=10, width=80,wrap=tk.WORD)
+        self.console.pack(expand=True, fill="both")
 
-    async def print_result(self, task: asyncio.Task):
+    def log_to_console(self, message, tag=""):
+        self.console.config(state="normal")
+        self.console.insert(tk.END, f"{message}\n", (tag,))
+        self.console.config(state="disabled")
+        self.console.see(tk.END)  # Scroll to the end to always show the latest output
+
+    async def create_chargepoint(self, host, serial_number):
         try:
-            result = task.result()
-            print(f"Result: {result}")
+            async with websockets.connect(
+                    f'{host}',
+                    subprotocols=['ocpp1.6']
+            ) as ws:
+                cp_id = host.split("/")[-1]
+                self.charge_point = MyChargePoint(cp_id, ws)
+                task = await asyncio.gather(self.charge_point.start(), self.charge_point.send_boot_notification(serial_number))
+                print(task)
+                task[0].add_done_callback(self.handle_create_chargepoint_result)
         except Exception as e:
-            print(f"An error occurred: {e}")
-
-    async def create_chargepoint(self, cp_id):
-        async with websockets.connect(
-                f'ws://localhost:9210/{cp_id}',
-                subprotocols=['ocpp1.6']
-        ) as ws:
-            self.charge_point = MyChargePoint(cp_id, ws)
-            await asyncio.gather(self.charge_point.start(), self.charge_point.send_boot_notification())
+            self.log_to_console(f"Failed to connect: {e}", "error")
 
     # Actions
-    def connect_action(self):
-        cp_value = self.central_station_entry.get()
-        print(f"Connecting to Central Station as: {cp_value}")
+            
+    def handle_create_chargepoint_result(self, task: asyncio.Task):
         try:
-            task = asyncio.run_coroutine_threadsafe(self.create_chargepoint(cp_value), asyncio.get_event_loop())
-            task.add_done_callback(self.print_result)
-            print(f"Connected to Central Station")
-
-            self.central_station_entry.delete(0, tk.END)
-            self.central_station_entry.insert(0, "Connected")
-            self.central_station_entry.config(state="disabled")
-            self.connect_button.config(state="disabled")
-
+            result = task.result()
+            print(result.status)
+            if result.status == RegistrationStatus.accepted:
+                self.log_to_console("Charge Point registered")
+                self.central_station_entry.config(state="disabled")
+                self.central_station_serial_combobox.config(state="disabled")
+                self.connect_button.config(state="disabled")
+                self.log_to_console("Connected to Central Station")
         except Exception as e:
-            print(f"An error occurred: {e}")
-            return
+            self.log_to_console(f"An error occurred: {e}", "error")
+
+    def connect_action(self):
+        #for thread in threading.enumerate():
+        #    print(thread.name)
+        host = self.central_station_entry.get()
+        serial_number = self.central_station_serial_combobox.get() 
+        print(f"Connecting to Central Station as: {host}, {serial_number}")
+        try:
+            asyncio.run_coroutine_threadsafe(self.create_chargepoint(host,serial_number), asyncio.get_event_loop())
+        except Exception as e:
+            self.log_to_console(f"An error occurred: {e}", "error")
+
+
+    def handle_authorize_result(self, task):
+        try:
+            result = task.result()
+            if result.id_tag_info.status == AuthorizationStatus.accepted:
+                self.log_to_console("Authorization accepted")
+            else:
+                self.log_to_console("Authorization rejected")
+        except Exception as e:
+            self.log_to_console(f"An error occurred: {e}", "error")
 
     def authorize_action(self):
         tag_value = self.tag_entry.get()
-        print(f"Authorizing with Tag: {tag_value}")
-        task = asyncio.run_coroutine_threadsafe(self.charge_point.send_authorize(tag_value), asyncio.get_event_loop())
-        task.add_done_callback(self.print_result)
+        self.log_to_console(f"Authorizing with Tag: {tag_value}")
+
+        try:
+            task = asyncio.run_coroutine_threadsafe(self.charge_point.send_authorize(tag_value), asyncio.get_event_loop())
+            task.add_done_callback(self.handle_authorize_result)
+        except Exception as e:
+            self.log_to_console(f"An error occurred: {e}", "error")
 
 
     def start_transaction_action(self):
         connector_id_value = self.connector_uid_entry.get()
         tag_value = self.tag_entry.get()
         meter_start_value = self.meter_value_entry.get()
-        print(f"Starting transaction with Connector ID: {connector_id_value}, Tag: {tag_value}, Meter Start: {meter_start_value}")
-        task = asyncio.run_coroutine_threadsafe(self.charge_point.send_start_transaction(connector_id_value, tag_value, meter_start_value), asyncio.get_event_loop())
-        task.add_done_callback(self.print_result)
+        self.log_to_console(f"Starting transaction with Connector ID: {connector_id_value}, Tag: {tag_value}, Meter Start: {meter_start_value}")
+
+        try:
+            task = asyncio.run_coroutine_threadsafe(
+                self.charge_point.send_start_transaction(connector_id_value, tag_value, meter_start_value),
+                asyncio.get_event_loop()
+            )
+        except Exception as e:
+            self.log_to_console(f"An error occurred: {e}", "error")
 
     def stop_transaction_action(self):
         transaction_id_value = self.entry_transaction_id.get()
         meter_stop_value = self.meter_value_entry.get()
-        print(f"Stopping transaction with Transaction ID: {transaction_id_value}, Meter Stop: {meter_stop_value}")
-        asyncio.create_task(self.charge_point.send_stop_transaction(transaction_id_value, meter_stop_value))
+        self.log_to_console(f"Stopping transaction with Transaction ID: {transaction_id_value}, Meter Stop: {meter_stop_value}")
+
+        try:
+            asyncio.create_task(self.charge_point.send_stop_transaction(transaction_id_value, meter_stop_value))
+        except Exception as e:
+            self.log_to_console(f"An error occurred: {e}", "error")
 
     def heartbeat_action(self):
-        print("Sending heartbeat")
-        asyncio.create_task(self.charge_point.send_heartbeat())
+        self.log_to_console("Sending heartbeat")
 
-class ConsoleOutput:
-    def __init__(self, console):
-        self.console = console
-
-    def write(self, text):
-        self.console.insert(tk.END, text)
-        self.console.see(tk.END)
-
-    def flush(self):
-        pass
+        try:
+            asyncio.create_task(self.charge_point.send_heartbeat())
+        except Exception as e:
+            self.log_to_console(f"An error occurred: {e}", "error")
 
 def main():
     root = tk.Tk()

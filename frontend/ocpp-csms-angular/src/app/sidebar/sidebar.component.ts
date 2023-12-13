@@ -13,7 +13,7 @@ export interface RouteInfo {
 export const ROUTES: RouteInfo[] = [
     { path: '',               title: 'Dashboard',         icon:'nc-bank',       class: '' },
     { path: '/stations',      title: 'Charge Stations',   icon:'nc-diamond',    class: '' },
-    { path: '/maps',          title: 'Maps',              icon:'nc-pin-3',      class: '' },
+    { path: '/map',           title: 'Maps',              icon:'nc-pin-3',      class: '' },
     { path: '/notifications', title: 'Notifications',     icon:'nc-bell-55',    class: '' },
 ];
 

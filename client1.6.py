@@ -5,7 +5,7 @@ import websockets
 import subprocess
 
 from ocpp.v16 import ChargePoint as cp
-from ocpp.v16 import call
+from ocpp.v16 import call, call_result
 from ocpp.v16.enums import Action,AuthorizationStatus
 from ocpp.routing import on
 
@@ -27,7 +27,7 @@ class ChargePoint(cp):
             charge_point_model='NECU-T2',
             firmware_version='1.0',
         )
-        response = await self.call(request)
+        response:call_result.BootNotificationPayload = await self.call(request)
 
         if response.status == AuthorizationStatus.accepted:
             print(f"Connected to central system for {self.id}.")
