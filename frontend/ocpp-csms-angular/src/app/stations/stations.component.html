@@ -14,6 +14,12 @@
                   <th mat-header-cell *matHeaderCellDef> ID </th>
                   <td mat-cell *matCellDef="let station"> {{station.id}} </td>
                 </ng-container>
+                
+                <!-- Serial Number Column -->
+                <ng-container matColumnDef="serial_number">
+                    <th mat-header-cell *matHeaderCellDef> Serial Number </th>
+                    <td mat-cell *matCellDef="let station"> {{station.serial_number}} </td>
+                  </ng-container>
 
                 <!-- Model Column -->
                 <ng-container matColumnDef="model">
@@ -24,13 +30,9 @@
                 <!-- Status Column -->
                 <ng-container matColumnDef="status">
                   <th mat-header-cell *matHeaderCellDef> Status </th>
-                  <td mat-cell *matCellDef="let station"> {{station.status}} </td>
-                </ng-container>
-
-                <!-- Location Column -->
-                <ng-container matColumnDef="location">
-                  <th mat-header-cell *matHeaderCellDef> Location </th>
-                  <td mat-cell *matCellDef="let station"> {{station.location}} </td>
+                  <td mat-cell *matCellDef="let station" [ngStyle]="{ 'background-color': getStatusColor(station.status) }">
+                    {{station.status}}
+                  </td>
                 </ng-container>
 
                 <!-- Last Activity Column -->
@@ -40,7 +42,7 @@
                 </ng-container>
 
                 <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns;" [routerLink]="['/detail', row.serial_number]"></tr>
               </table>
 
               <mat-paginator [pageSizeOptions]="[5, 10, 20]" showFirstLastButtons></mat-paginator>

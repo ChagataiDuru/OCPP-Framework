@@ -50,7 +50,7 @@ export class ChargePoint extends Document {
   @Prop({ type: [String], enum: Object.values(ConnectorType), default: [] })
   connectors: ConnectorType[];
 
-  @Prop({ type: Date, default: Date.now })
+  @Prop({ default: Date.now })
   lastActivity: Date;
 }
 

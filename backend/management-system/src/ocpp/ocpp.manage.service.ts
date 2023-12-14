@@ -29,4 +29,12 @@ export class OcppService {
     return this.chargePointModel.find().exec();
   }
 
+  async getChargePoint(serial_number: string): Promise<ChargePoint> {
+    return this.chargePointModel.findOne({ serial_number }).exec();
+  }
+
+  async getAvailableChargePoints(): Promise<ChargePoint[]> {
+    return this.chargePointModel.find({ status: 'available' }).exec();
+  }
+
 }

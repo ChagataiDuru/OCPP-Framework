@@ -15,10 +15,10 @@
                         <i class="nc-icon nc-globe text-warning"></i>
                       </div>
                     </div>
-                    <div class="col-7 col-md-8">
+                    <div *ngIf="activeClients !== undefined" class="col-7 col-md-8">
                       <div class="numbers">
                         <p class="card-category">Active Charge Stations</p>
-                        <p class="card-title">0
+                        <p class="card-title">{{ activeClients }}</p>
                       </div>
                     </div>
                   </div>
@@ -67,9 +67,8 @@
                     </div>
                     <div class="col-7 col-md-8">
                       <div class="numbers">
-                        <p class="card-category">Errors</p>
-                        <p class="card-title">23
-                          <p>
+                        <p class="card-category">Ongoing Transactions</p>
+                        <p class="card-title">0<p>
                       </div>
                     </div>
                   </div>
@@ -77,7 +76,7 @@
                 <div class="card-footer ">
                   <hr>
                   <div class="stats">
-                    <i class="fa fa-clock-o"></i> In the last hour
+                    <i class="fa fa-clock-o"></i>
                   </div>
                 </div>
               </div>

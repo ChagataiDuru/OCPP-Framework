@@ -23,17 +23,22 @@ class MyChargePoint(cp):
         try:
             response: call_result.BootNotificationPayload = await self.call(request)
             self.interval = response.interval
+            if response.status == RegistrationStatus.accepted:
+                print(f"Connected to central system for {self.id}.")
+                await self.send_heartbeat()
             return response.status == RegistrationStatus.accepted
         except websockets.exceptions.ConnectionClosed as e:
             print(f"Connection closed: {e}")
             return False
         
     async def send_authorize(self, id_tag):
+        print(f"Authorizing for {id_tag}.")
         request = call.AuthorizePayload(
             id_tag=id_tag
         )
-        response: call_result.AuthorizePayload = await self.call(request)
-        return response.id_tag_info.status
+        response = await self.call(request)
+        print(f"Received authorize response for {response}.")
+        return response
 
     async def send_start_transaction(self, connector_id, id_tag, meter_start):
         request = call.StartTransactionPayload(
@@ -121,9 +126,10 @@ class OCPPSimulatorGUI:
         self.charge_point: MyChargePoint = None
         self.serials = {
             "OCM-172990": "ZES-Ataşehir",
-            "OCM-172991": "ZES-Ümraniye",
-            "OCM-172992": "ZES-Kadıköy",
-            "OCM-172993": "ZES-Kartal",
+            "OCM-165195": "EŞARJ-Paladium",
+            "OCM-107959": "EŞARJ-Kadiköy",
+            "OCM-260427": "POWERSARJ-Doğuş",
+            "OCM-165200": "EŞARJ-Optimum",
         }
         self.create_widgets()
 
@@ -152,17 +158,25 @@ class OCPPSimulatorGUI:
         self.central_station_serial_combobox = ttk.Combobox(self.root, values=[key for key in self.serials])
         self.central_station_serial_combobox.pack()
 
-        # Tag
-        tag_label = tk.Label(self.root, text="Tag")
-        tag_label.pack()
-        self.tag_entry = tk.Entry(self.root)
-        self.tag_entry.pack()
+        # RFID Tag
+        rfid_tag_label = tk.Label(self.root, text="RFID Tag")
+        rfid_tag_label.pack()
+        self.rfid_tag_entry = tk.Entry(self.root)
+        self.rfid_tag_entry.pack()
 
         # Connector uid
         connector_uid_label = tk.Label(self.root, text="Connector uid")
         connector_uid_label.pack()
         self.connector_uid_entry = tk.Entry(self.root)
         self.connector_uid_entry.pack()
+
+
+        # Meter value
+        meter_value_label = tk.Label(self.root, text="Meter value")
+        meter_value_label.pack()
+        self.meter_value_entry = tk.Entry(self.root)
+        self.meter_value_entry.pack()
+        
 
         # Actions
         self.actions_label = tk.Label(self.root, text="Actions", font=("Arial", 24))
@@ -175,20 +189,6 @@ class OCPPSimulatorGUI:
         self.start_transaction_button.pack()
         self.stop_transaction_button = tk.Button(self.root, text="Stop Transaction", command=self.stop_transaction_action)
         self.stop_transaction_button.pack()
-        self.heartbeat_button = tk.Button(self.root, text="Heartbeat", command=self.heartbeat_action)
-        self.heartbeat_button.pack()
-
-        # Meter value
-        meter_value_label = tk.Label(self.root, text="Meter value")
-        meter_value_label.pack()
-        self.meter_value_entry = tk.Entry(self.root)
-        self.meter_value_entry.pack()
-
-        # transactionId
-        transaction_id_label = tk.Label(self.root, text="transactionId")
-        transaction_id_label.pack()
-        transaction_id_entry = tk.Entry(self.root)
-        transaction_id_entry.pack()
 
         # Connector Status
         connector_status_label = tk.Label(self.root, text="Connector Status")
@@ -205,12 +205,6 @@ class OCPPSimulatorGUI:
         increment_value_label.pack()
         increment_value_entry = tk.Entry(self.root)
         increment_value_entry.pack()
-
-        # Time interval
-        time_interval_label = tk.Label(self.root, text="Time interval")
-        time_interval_label.pack()
-        time_interval_entry = tk.Entry(self.root)
-        time_interval_entry.pack()
 
         # Counter
         counter_label = tk.Label(self.root, text="Counter")
@@ -248,24 +242,18 @@ class OCPPSimulatorGUI:
             ) as ws:
                 cp_id = host.split("/")[-1]
                 self.charge_point = MyChargePoint(cp_id, ws)
-                task = await asyncio.gather(self.charge_point.start(), self.charge_point.send_boot_notification(serial_number))
-                print(task)
-                task[0].add_done_callback(self.handle_create_chargepoint_result)
+                await asyncio.gather(self.charge_point.start(), self.charge_point.send_boot_notification(serial_number))
         except Exception as e:
             self.log_to_console(f"Failed to connect: {e}", "error")
 
     # Actions
-            
-    def handle_create_chargepoint_result(self, task: asyncio.Task):
+    def handle_create_chargepoint_result(self):
         try:
-            result = task.result()
-            print(result.status)
-            if result.status == RegistrationStatus.accepted:
-                self.log_to_console("Charge Point registered")
-                self.central_station_entry.config(state="disabled")
-                self.central_station_serial_combobox.config(state="disabled")
-                self.connect_button.config(state="disabled")
-                self.log_to_console("Connected to Central Station")
+            self.log_to_console("Charge Point registered")
+            self.central_station_entry.config(state="disabled")
+            self.central_station_serial_combobox.config(state="disabled")
+            self.connect_button.config(state="disabled")
+            self.log_to_console("Connected to Central Station")
         except Exception as e:
             self.log_to_console(f"An error occurred: {e}", "error")
 
@@ -277,13 +265,14 @@ class OCPPSimulatorGUI:
         print(f"Connecting to Central Station as: {host}, {serial_number}")
         try:
             asyncio.run_coroutine_threadsafe(self.create_chargepoint(host,serial_number), asyncio.get_event_loop())
+            self.handle_create_chargepoint_result()
         except Exception as e:
             self.log_to_console(f"An error occurred: {e}", "error")
 
 
     def handle_authorize_result(self, task):
         try:
-            result = task.result()
+            result:call_result.AuthorizePayload = task.result()
             if result.id_tag_info.status == AuthorizationStatus.accepted:
                 self.log_to_console("Authorization accepted")
             else:
@@ -292,7 +281,7 @@ class OCPPSimulatorGUI:
             self.log_to_console(f"An error occurred: {e}", "error")
 
     def authorize_action(self):
-        tag_value = self.tag_entry.get()
+        tag_value = self.rfid_tag_entry.get()
         self.log_to_console(f"Authorizing with Tag: {tag_value}")
 
         try:
@@ -304,7 +293,7 @@ class OCPPSimulatorGUI:
 
     def start_transaction_action(self):
         connector_id_value = self.connector_uid_entry.get()
-        tag_value = self.tag_entry.get()
+        tag_value = self.rfid_tag_entry.get()
         meter_start_value = self.meter_value_entry.get()
         self.log_to_console(f"Starting transaction with Connector ID: {connector_id_value}, Tag: {tag_value}, Meter Start: {meter_start_value}")
 
@@ -323,14 +312,6 @@ class OCPPSimulatorGUI:
 
         try:
             asyncio.create_task(self.charge_point.send_stop_transaction(transaction_id_value, meter_stop_value))
-        except Exception as e:
-            self.log_to_console(f"An error occurred: {e}", "error")
-
-    def heartbeat_action(self):
-        self.log_to_console("Sending heartbeat")
-
-        try:
-            asyncio.create_task(self.charge_point.send_heartbeat())
         except Exception as e:
             self.log_to_console(f"An error occurred: {e}", "error")
 
