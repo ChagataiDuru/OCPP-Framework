@@ -15,11 +15,11 @@ interface ChargePointData {
     chargePoints: { [cpId: string]: {
         chargePoint: ChargePoint;
         connectorStatus: { [connectorId: string]: string };
-        transactions: { [transactionId: number]: {
+        transactions: { 
             authorization: AuthorizeResponse,
             start: StartTransactionResponse,
             end: StopTransactionResponse
-        } };
+        } ;
     } };
 }
 
@@ -68,7 +68,24 @@ export class OcppService implements OnApplicationBootstrap {
                 this.data.chargePoints[client.getCpId()] = {
                     chargePoint: chargePoint,
                     connectorStatus: {},
-                    transactions: {},
+                    transactions: {
+                        authorization: {
+                            idTagInfo: {
+                                status: 'Invalid'
+                            }
+                        },
+                        start: {
+                            transactionId: 0,
+                            idTagInfo: {
+                                status: 'Invalid'
+                            }
+                        },
+                        end: {
+                            idTagInfo: {
+                                status: 'Invalid'
+                            }
+                        },
+                    },
                 };
 
                 const response: BootNotificationResponse = {
@@ -106,7 +123,7 @@ export class OcppService implements OnApplicationBootstrap {
                     return;
                 }
                 const id = Math.floor(Math.random() * 255);
-                chargePointData.transactions[id] = {
+                chargePointData.transactions = {
                     authorization: {
                         idTagInfo: {
                             status: 'Accepted'
@@ -125,7 +142,7 @@ export class OcppService implements OnApplicationBootstrap {
                     },
                 };
 
-                const response: AuthorizeResponse = chargePointData.transactions[id].authorization;
+                const response: AuthorizeResponse = chargePointData.transactions.authorization;
                 cb(response);
             });
 
@@ -136,16 +153,15 @@ export class OcppService implements OnApplicationBootstrap {
                     this.logger.error(`Charge point with ID ${client.getCpId()} not found`);
                     return;
                 }
-
-                const id = Math.floor(Math.random() * 255);
-                chargePointData.transactions[id].start = {
-                    transactionId: id,
-                    idTagInfo: {
-                        status: 'Accepted'
-                    }
+                if (chargePointData.transactions.authorization.idTagInfo.status !== 'Accepted') {
+                    this.logger.error(`StartTransaction request received from ${client.getCpId()} without authorization`);
+                    return;
+                }
+                chargePointData.transactions.start.idTagInfo = {
+                    status: 'Accepted'
                 };
 
-                const response: StartTransactionResponse = chargePointData.transactions[id].start;
+                const response: StartTransactionResponse = chargePointData.transactions.start;
                 cb(response);
             });
 
@@ -157,14 +173,11 @@ export class OcppService implements OnApplicationBootstrap {
                     return;
                 }
 
-                const id = Math.floor(Math.random() * 255);
-                chargePointData.transactions[id].end = {
-                    idTagInfo: {
-                        status: 'Accepted'
-                    }
+                chargePointData.transactions.end.idTagInfo = {
+                    status: 'Accepted'
                 };
 
-                const response: StopTransactionResponse = chargePointData.transactions[id].end;
+                const response: StopTransactionResponse = chargePointData.transactions.end;
                 cb(response);
             });
         });

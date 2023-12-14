@@ -38,6 +38,8 @@ class MyChargePoint(cp):
         )
         response = await self.call(request)
         print(f"Received authorize response for {response}.")
+        is_authorized = response.id_tag_info.status == AuthorizationStatus.accepted
+        print(f"Authorized: {is_authorized}")
         return response
 
     async def send_start_transaction(self, connector_id, id_tag, meter_start):
@@ -228,6 +230,9 @@ class OCPPSimulatorGUI:
         self.console = ScrolledText(self.root, state="disabled", height=10, width=80,wrap=tk.WORD)
         self.console.pack(expand=True, fill="both")
 
+        is_connected = False
+        is_authorized = False
+
     def log_to_console(self, message, tag=""):
         self.console.config(state="normal")
         self.console.insert(tk.END, f"{message}\n", (tag,))
@@ -270,13 +275,10 @@ class OCPPSimulatorGUI:
             self.log_to_console(f"An error occurred: {e}", "error")
 
 
-    def handle_authorize_result(self, task):
+    def handle_authorize_result(self):
         try:
-            result:call_result.AuthorizePayload = task.result()
-            if result.id_tag_info.status == AuthorizationStatus.accepted:
-                self.log_to_console("Authorization accepted")
-            else:
-                self.log_to_console("Authorization rejected")
+            self.log_to_console("Authorization accepted")
+            self.authorize_button.config(state="disabled")
         except Exception as e:
             self.log_to_console(f"An error occurred: {e}", "error")
 
@@ -285,8 +287,8 @@ class OCPPSimulatorGUI:
         self.log_to_console(f"Authorizing with Tag: {tag_value}")
 
         try:
-            task = asyncio.run_coroutine_threadsafe(self.charge_point.send_authorize(tag_value), asyncio.get_event_loop())
-            task.add_done_callback(self.handle_authorize_result)
+            asyncio.run_coroutine_threadsafe(self.charge_point.send_authorize(tag_value), asyncio.get_event_loop())
+            self.handle_authorize_result()
         except Exception as e:
             self.log_to_console(f"An error occurred: {e}", "error")
 
@@ -295,6 +297,11 @@ class OCPPSimulatorGUI:
         connector_id_value = self.connector_uid_entry.get()
         tag_value = self.rfid_tag_entry.get()
         meter_start_value = self.meter_value_entry.get()
+
+        if connector_id_value == "" or tag_value == "" or meter_start_value == "":
+            self.log_to_console("Please fill in all fields.", "error")
+            return
+        
         self.log_to_console(f"Starting transaction with Connector ID: {connector_id_value}, Tag: {tag_value}, Meter Start: {meter_start_value}")
 
         try:
@@ -308,6 +315,11 @@ class OCPPSimulatorGUI:
     def stop_transaction_action(self):
         transaction_id_value = self.entry_transaction_id.get()
         meter_stop_value = self.meter_value_entry.get()
+
+        if transaction_id_value == "" or meter_stop_value == "":
+            self.log_to_console("Please fill in all fields.", "error")
+            return
+
         self.log_to_console(f"Stopping transaction with Transaction ID: {transaction_id_value}, Meter Stop: {meter_stop_value}")
 
         try:
