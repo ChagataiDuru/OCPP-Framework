@@ -1,16 +1,19 @@
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConsumeMessage } from 'amqplib';
-import { ChargePoint } from './schemas/charge.point.schemas';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { EventEmitter } from 'events';
+
+import { ChargePoint,Status } from './schemas/charge.point.schemas';
+
 
 @Injectable()
 export class OcppService {
 
   private readonly logger = new Logger('OcppManager');
   public heartbeatEvent = new EventEmitter();
+  public transactionEvent = new EventEmitter();
 
 
   constructor(@InjectModel(ChargePoint.name) private readonly chargePointModel: Model<ChargePoint>,) {}
@@ -24,6 +27,16 @@ export class OcppService {
     this.logger.log(`Received heartbeat: ${JSON.stringify(msg)}`);
     this.heartbeatEvent.emit('heartbeat', msg);
   }
+  
+  @RabbitSubscribe({
+    exchange: 'management.system',
+    routingKey: 'transaction.routing.key',
+    queue: 'transaction_queue',
+  })
+  public async handleTransaction(msg: {}, amqpMsg: ConsumeMessage) {
+    this.logger.log(`Received transaction: ${JSON.stringify(msg)}`);
+    this.transactionEvent.emit('transaction', msg);
+  }
 
   async getAllChargePoints(): Promise<ChargePoint[]> {
     return this.chargePointModel.find().exec();
@@ -34,7 +47,19 @@ export class OcppService {
   }
 
   async getAvailableChargePoints(): Promise<ChargePoint[]> {
-    return this.chargePointModel.find({ status: 'available' }).exec();
+    return this.chargePointModel.find({ status: Status.Available }).exec();
+  }
+
+  async getOccupiedChargePoints(): Promise<ChargePoint[]> {
+    return this.chargePointModel.find({ status: Status.Charging }).exec();
+  }
+
+  async getConnectorStatus(): Promise<any[]> {
+    const connectors = await this.chargePointModel.find().exec();
+    return connectors.map(connector => ({
+      id: connector.cpId,
+      status: connector.status,
+    }));
   }
 
 }

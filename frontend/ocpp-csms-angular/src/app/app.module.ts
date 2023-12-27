@@ -18,6 +18,7 @@ import { NavbarModule } from './navbar/navbar.module';
 import { MapComponent } from './map/map.component';
 import { StationsComponent } from './stations/stations.component';
 import { DetailComponent } from './detail/detail.component';
+import { TransactionComponent } from './transactions/transactions.component';
 
 @NgModule({
   declarations: [
@@ -26,7 +27,8 @@ import { DetailComponent } from './detail/detail.component';
     DashboardComponent,
     MapComponent,
     StationsComponent,
-    DetailComponent
+    DetailComponent,
+    TransactionComponent,
   ],
   imports: [
     BrowserModule,

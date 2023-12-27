@@ -3,7 +3,6 @@ import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { ConfigService } from '../config.service';
 import { SseService } from '../sse.service';
-import { connect } from 'http2';
 
 export enum ConnectorType {
   ACType1 = 'AC Type1',
@@ -13,6 +12,23 @@ export enum ConnectorType {
   DCCSS2 = 'DC CSS 2',
   CHAdeMO = 'CHAdeMO',
   DCGT = 'DC GB/T'
+}
+
+export enum Status {
+  Available = 'Available',
+  Preparing = 'Preparing',
+  Charging = 'Charging',
+  SuspendedEVSE = 'SuspendedEVSE',
+  SuspendedEV = 'SuspendedEV',
+  Finishing = 'Finishing',
+  Reserved = 'Reserved',
+  Unavailable = 'Unavailable',
+  Faulted = 'Faulted'
+}
+
+export interface Connector {
+  type: ConnectorType;
+  status: Status;
 }
 
 export interface CPDto {
@@ -26,7 +42,7 @@ export interface CPDto {
   comment?: string;
   cpmodel: string;
   password?: string;
-  connectors?: ConnectorType[];
+  connectors: Connector[];
 }
 
 @Component({
@@ -41,7 +57,8 @@ export class DetailComponent implements OnInit {
     status: 'unavailable',
     manufacturer: '',
     serial_number: '',
-    connectors: [] as ConnectorType[],
+    connectors_name: [] as ConnectorType[],
+    connectors_status: [] as Status[],
   };
   
   constructor(private route: ActivatedRoute,private http: HttpClient, private configService: ConfigService, private _sseService: SseService) {}
@@ -50,20 +67,51 @@ export class DetailComponent implements OnInit {
     const apiUrl = this.configService.getApiUrl();
     const cpId = this.route.snapshot.paramMap.get('cp');
     this.http.get<CPDto>(`${apiUrl}/chargers/${cpId}`).subscribe(charger => {
-      console.log('Charger: ', charger);
-
-      const connectorsArray = Object.values(charger.connectors || {});
-      
-      console.log('Connectors array: ', connectorsArray);
+      const connectorsNameArray = Object.values(charger.connectors).map(connector => connector.type);
+      const connectorStatusArray = Object.values(charger.connectors).map(connector => connector.status);
+      console.log('Connector Status Array:', connectorStatusArray);
       this.chargerDetail = {
         cpId: charger.cpId,
         description: charger.description,
         status: charger.status,
         manufacturer: charger.manufacturer,
         serial_number: charger.serial_number,
-        connectors: connectorsArray as ConnectorType[],
+        connectors_name: connectorsNameArray,
+        connectors_status: connectorStatusArray
       };
     });
-    console.log('Charger detail: ', this.chargerDetail.connectors);
   }
+
+  currentConnectorIndex = 0;
+
+  previousConnector() {
+    if (this.currentConnectorIndex > 0) {
+      this.currentConnectorIndex--;
+      console.log('Current Connector Index:', this.currentConnectorIndex);
+    }
+  }
+  
+  nextConnector() {
+    if (this.currentConnectorIndex < this.chargerDetail.connectors_name.length - 1) {
+      this.currentConnectorIndex++;
+      console.log('Current Connector Index:', this.currentConnectorIndex);
+    }
+  }
+
+  getConnectorStatusClass(index: number): string {
+    const status = this.chargerDetail.connectors_status[index];
+    
+    switch (status) {
+      case 'Available':
+        return 'status-available';
+      case 'Charging':
+        return 'status-charging';
+      case 'Unavailable':
+      case 'Faulted':
+        return 'status-unavailable';
+      default:
+        return ''; 
+    }
+  }
+
 }

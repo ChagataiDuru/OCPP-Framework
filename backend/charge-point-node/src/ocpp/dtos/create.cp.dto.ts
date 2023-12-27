@@ -1,6 +1,25 @@
 
-import { IsNumber, IsString, IsEnum, IsNotEmpty, IsOptional, IsLatitude, IsLongitude, IsObject } from 'class-validator';
+import { IsNumber, IsString, IsEnum, IsNotEmpty, IsOptional, IsLatitude, IsLongitude, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
 import { ConnectorType } from '../schemas/charge.point.schemas';
+
+export enum Status {
+  Available = 'Available',
+  Preparing = 'Preparing',
+  Charging = 'Charging',
+  SuspendedEVSE = 'SuspendedEVSE',
+  SuspendedEV = 'SuspendedEV',
+  Finishing = 'Finishing',
+  Reserved = 'Reserved',
+  Unavailable = 'Unavailable',
+  Faulted = 'Faulted'
+}
+
+export interface Connector {
+  type: ConnectorType;
+  status: Status;
+}
 
 export class CreateCPDto {
 
@@ -10,7 +29,7 @@ export class CreateCPDto {
   @IsString()
   description: string;
 
-  @IsEnum(['unavailable','available','occupied'])
+  @IsEnum(Status)
   status: string;
 
   @IsNotEmpty()
@@ -42,6 +61,6 @@ export class CreateCPDto {
   password: string;
 
   @IsOptional()
-  @IsEnum(ConnectorType, { each: true })
-  connectors: ConnectorType[];
+  @IsArray()
+  connectors: Array<Connector>;
 }

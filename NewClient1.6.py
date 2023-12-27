@@ -14,6 +14,7 @@ from ocpp.v16.enums import RegistrationStatus, Action, AuthorizationStatus, Remo
 
 class MyChargePoint(cp):
     interval:int = 60
+    transactionId:int = 0
     async def send_boot_notification(self, serial_number):
         request = call.BootNotificationPayload(
             charge_point_model="AVT-Express",
@@ -44,22 +45,42 @@ class MyChargePoint(cp):
 
     async def send_start_transaction(self, connector_id, id_tag, meter_start):
         request = call.StartTransactionPayload(
-            connector_id=connector_id,
+            connector_id=int(connector_id),
             id_tag=id_tag,
-            meter_start=meter_start,
-            timestamp=datetime.utcnow().isoformat()
+            meter_start=int(meter_start),
+            timestamp=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         )
-        response: call_result.StartTransactionPayload = await self.call(request)
-        return response.id_tag_info.status
+        print(f"Starting transaction for {id_tag}., {connector_id}, {meter_start}, {request.timestamp}")
+        try:
+            response: call_result.StartTransactionPayload = await self.call(request)
 
-    async def send_stop_transaction(self, transaction_id, meter_stop):
+            print(f"Received start transaction response for {response}.")
+            print(f"Transaction ID: {response.transaction_id}")
+            print(f"Status: {response.id_tag_info.status}")
+
+            if response.id_tag_info.status == AuthorizationStatus.accepted:
+                self.transactionId = response.transaction_id
+            elif response.id_tag_info.status == AuthorizationStatus.invalid:
+                print(f"Invalid authorization for {id_tag}.")
+                return
+            return response.id_tag_info.status
+        except Exception as e:
+            print("An error occurred during the start transaction call")
+
+    async def send_stop_transaction(self, meter_stop):
         request = call.StopTransactionPayload(
-            meter_stop=meter_stop,
-            timestamp=datetime.utcnow().isoformat(),
-            transaction_id=transaction_id
+            meter_stop=int(meter_stop),
+            timestamp=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            transaction_id=int(self.transactionId),
+            reason = "Local",
         )
-        response: call_result.StopTransactionPayload = await self.call(request)
-        return response.id_tag_info.status
+        print(f"Stopping transaction for {self.transactionId}., {meter_stop}, {request.timestamp}")
+        try:
+            response: call_result.StopTransactionPayload = await self.call(request)
+            print(f"Received stop transaction response for {response}.")
+            return response.id_tag_info.status
+        except Exception as e:
+            print("An error occurred during the stop transaction call")
 
     async def send_heartbeat(self):
         print(f"Sending heartbeat for {self.id}.")
@@ -298,12 +319,10 @@ class OCPPSimulatorGUI:
         tag_value = self.rfid_tag_entry.get()
         meter_start_value = self.meter_value_entry.get()
 
-        if connector_id_value == "" or tag_value == "" or meter_start_value == "":
+        if connector_id_value == "" or meter_start_value == "":
             self.log_to_console("Please fill in all fields.", "error")
             return
-        
-        self.log_to_console(f"Starting transaction with Connector ID: {connector_id_value}, Tag: {tag_value}, Meter Start: {meter_start_value}")
-
+        self.log_to_console(f"Trying starting transaction with Connector ID: {connector_id_value}, Meter Start: {meter_start_value}")
         try:
             task = asyncio.run_coroutine_threadsafe(
                 self.charge_point.send_start_transaction(connector_id_value, tag_value, meter_start_value),
@@ -313,17 +332,21 @@ class OCPPSimulatorGUI:
             self.log_to_console(f"An error occurred: {e}", "error")
 
     def stop_transaction_action(self):
-        transaction_id_value = self.entry_transaction_id.get()
+        connector_id_value = self.connector_uid_entry.get()
+        tag_value = self.rfid_tag_entry.get()
         meter_stop_value = self.meter_value_entry.get()
 
-        if transaction_id_value == "" or meter_stop_value == "":
+        if meter_stop_value == "":
             self.log_to_console("Please fill in all fields.", "error")
             return
 
-        self.log_to_console(f"Stopping transaction with Transaction ID: {transaction_id_value}, Meter Stop: {meter_stop_value}")
+        self.log_to_console(f"Stopping transaction with Connector ID: {connector_id_value}, Tag: {tag_value}, Meter Stop: {meter_stop_value}")
 
         try:
-            asyncio.create_task(self.charge_point.send_stop_transaction(transaction_id_value, meter_stop_value))
+            task = asyncio.run_coroutine_threadsafe(
+                self.charge_point.send_stop_transaction(meter_stop_value),
+                asyncio.get_event_loop()
+            )
         except Exception as e:
             self.log_to_console(f"An error occurred: {e}", "error")
 

@@ -7,14 +7,14 @@ import { MongoError } from 'mongodb';
 import { randomBytes, scrypt as _scrypt } from "crypto";
 import { promisify } from "util";
 import { ChargePoint } from './schemas/charge.point.schemas';
-import { CreateCPDto } from './dtos/create.cp.dto';
+import { CreateCPDto,Status,Connector } from './dtos/create.cp.dto';
 
 const scrypt = promisify(_scrypt);
 
 interface ChargePointData {
     chargePoints: { [cpId: string]: {
         chargePoint: ChargePoint;
-        connectorStatus: { [connectorId: string]: string };
+        connectorStatus: { [connectorId: number]: Status };
         transactions: { 
             authorization: AuthorizeResponse,
             start: StartTransactionResponse,
@@ -52,7 +52,7 @@ export class OcppService implements OnApplicationBootstrap {
                     return;
                 }
                 const chargePoint = chargePointData.chargePoint;
-                await this.chargePointModel.updateOne({ _id: chargePoint._id }, { status: 'unavailable' });
+                await this.chargePointModel.updateOne({ _id: chargePoint._id }, { status: Status.Unavailable });
                 this.data.chargePoints[client.getCpId()] = undefined;
             });
 
@@ -63,7 +63,7 @@ export class OcppService implements OnApplicationBootstrap {
                     this.logger.error(`Charge point with serial number ${serial_number} not found`);
                     return;
                 }
-                await this.chargePointModel.updateOne({ _id: chargePoint._id }, { status: 'available' });
+                await this.chargePointModel.updateOne({ _id: chargePoint._id }, { status: Status.Available });
 
                 this.data.chargePoints[client.getCpId()] = {
                     chargePoint: chargePoint,
@@ -110,8 +110,6 @@ export class OcppService implements OnApplicationBootstrap {
                     await this.amqpConnection.publish('management.system', 'heartbeat.routing.key', message);
                     await this.updateLastSeen(client.getCpId());
                 }
-
-                this.logger.log(`Heartbeat queued from ${client.getCpId()}, at ${response.currentTime}`);
                 cb(response);
             });
 
@@ -122,7 +120,6 @@ export class OcppService implements OnApplicationBootstrap {
                     this.logger.error(`Charge point with ID ${client.getCpId()} not found`);
                     return;
                 }
-                const id = Math.floor(Math.random() * 255);
                 chargePointData.transactions = {
                     authorization: {
                         idTagInfo: {
@@ -130,7 +127,7 @@ export class OcppService implements OnApplicationBootstrap {
                         }
                     },
                     start: {
-                        transactionId: id,
+                        transactionId: 1,
                         idTagInfo: {
                             status: 'Invalid'
                         }
@@ -141,8 +138,9 @@ export class OcppService implements OnApplicationBootstrap {
                         }
                     },
                 };
-
+                this.logger.log(`Authorize request received from ${client.getCpId()} with idTag ${request.idTag}`);
                 const response: AuthorizeResponse = chargePointData.transactions.authorization;
+                this.logger.log(`Authorize response: ${JSON.stringify(response)}`);
                 cb(response);
             });
 
@@ -155,12 +153,21 @@ export class OcppService implements OnApplicationBootstrap {
                 }
                 if (chargePointData.transactions.authorization.idTagInfo.status !== 'Accepted') {
                     this.logger.error(`StartTransaction request received from ${client.getCpId()} without authorization`);
-                    return;
+                    const response: StartTransactionResponse = {
+                        transactionId: 0,
+                        idTagInfo: {
+                            status: 'Invalid'
+                        }
+                    };
+                    cb(response);
                 }
                 chargePointData.transactions.start.idTagInfo = {
                     status: 'Accepted'
                 };
 
+                const id = Math.floor(Math.random() * 255);
+                chargePointData.transactions.start.transactionId = id;
+                await this.updateTransactionStatus(client.getCpId(), id,request.connectorId, 'Accepted');
                 const response: StartTransactionResponse = chargePointData.transactions.start;
                 cb(response);
             });
@@ -177,6 +184,7 @@ export class OcppService implements OnApplicationBootstrap {
                     status: 'Accepted'
                 };
 
+                await this.updateTransactionStatus(client.getCpId(), request.transactionId,0, 'Invalid');
                 const response: StopTransactionResponse = chargePointData.transactions.end;
                 cb(response);
             });
@@ -185,7 +193,6 @@ export class OcppService implements OnApplicationBootstrap {
 
     async updateLastSeen(cpId: string): Promise<void> {
         const chargePoint = this.data.chargePoints[cpId].chargePoint;
-        this.logger.log(`Updating last seen for charge point ${cpId}`);
         if (!chargePoint) {
             this.logger.error(`Charge point with ID ${cpId} not found`);
             return;
@@ -195,9 +202,42 @@ export class OcppService implements OnApplicationBootstrap {
         const result = await this.chargePointModel.updateOne({ _id: chargePoint._id }, { lastActivity: chargePoint.lastActivity });
     }
 
-    updateTransactionStatus(chargePointId: string, transactionId: string, status: string) {
-        // Implement your logic here
-        throw new Error('Method not implemented.');
+    async updateTransactionStatus(chargePointId: string, transactionId: number,connectorId: number, status: "Accepted" | "Blocked" | "Expired" | "Invalid" | "ConcurrentTx"): Promise<void> {
+        const chargePointData = this.data.chargePoints[chargePointId];
+        if (!chargePointData) {
+            this.logger.error(`Charge point with ID ${chargePointId} not found`);
+            return;
+        }
+        chargePointData.transactions.start.idTagInfo.status = status;
+        this.logger.log(`Transaction ${transactionId} status updated to ${status}`);
+        if (status === 'Accepted') {
+            chargePointData.transactions.end.idTagInfo.status = 'Invalid';
+            const message = {
+                id: chargePointId,
+                charger: this.data.chargePoints[chargePointId].chargePoint,
+                lastActivity: 60,
+            };
+            await this.amqpConnection.publish('management.system', 'transaction.routing.key', message);
+            this.logger.log(`Transaction ${transactionId} started`);
+            this.chargePointModel.findOne({ _id: chargePointData.chargePoint._id }).then(chargePoint => {
+                chargePoint.status = Status.Charging;
+                chargePoint.connectors[connectorId].status = Status.Charging;
+                this.logger.log(`status::: ${chargePoint}`);
+                chargePoint.save();
+            }).catch(err => {
+                this.logger.error(`Error updating transaction status: ${err}`);
+            });
+        }
+        else if (status === 'Invalid') {
+            this.logger.log(`Transaction ${transactionId} ended`);
+            this.chargePointModel.findOne({ _id: chargePointData.chargePoint._id }).then(chargePoint => {
+                chargePoint.status = Status.Available;
+                this.logger.log(`status::: ${chargePoint}`);
+                chargePoint.save();
+            }).catch(err => {
+                this.logger.error(`Error updating transaction status: ${err}`);
+            });
+        }
     }
 
     async findBySerialNumber(serial_number: any): Promise<ChargePoint> {
@@ -206,31 +246,37 @@ export class OcppService implements OnApplicationBootstrap {
     }
 
     async registerChargePoint(body: CreateCPDto): Promise<ChargePoint> {
-        this.logger.log(`Registering charge point: ${JSON.stringify(body)}`);
-
+    
         const salt = randomBytes(8).toString('hex');
         const hash = (await scrypt(body.password, salt, 32)) as Buffer;
         const result = salt + '.' + hash.toString('hex');
         body.password = result;
-        body.status = 'unavailable';
-        const createdChargePoint = new this.chargePointModel(body);
-
+        body.status = Status.Unavailable;
+        this.logger.log('Body: ' + JSON.stringify(body));
+    
         try {
+            const connectors: Connector[] = body.connectors.map((connector) => ({
+                type: connector.type,
+                status: connector.status
+            }));
+            body.connectors = connectors;
+            const createdChargePoint = new this.chargePointModel(body);
             return await createdChargePoint.save();
         } catch (error) {
+            this.logger.error(`Error registering charge point: ${error}`);
             if (error instanceof MongoError && error.code === 11000) {
                 throw new HttpException('Charge point with this serial number already exists', HttpStatus.CONFLICT);
             }
             throw error;
         }
     }
+    
 
     async getAllChargePoints() {
         return this.chargePointModel.find().exec();
     }
 
     async getConnectorStatus(connectorId: string) {
-        // Implement your logic here
-        throw new Error('Method not implemented.');
+        return this.chargePointModel.find({ connectors: { $elemMatch: { connectorId: connectorId } } }).exec();
     }
 }

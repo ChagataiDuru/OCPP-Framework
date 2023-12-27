@@ -21,14 +21,73 @@
                 <h4 class="card-title">Connectors</h4>
               </div>
               <div class="card-body">
-                <ul>
-                  <li *ngFor="let connector of chargerDetail.connectors">
-                    {{ connector }}
-                  </li>
-                </ul>
-              </div>
+                <div class="carousel-container">
+                  <button (click)="previousConnector()">Previous</button>
+                  <div class="carousel-item">
+                    <ul>
+                      <li>
+                        {{ chargerDetail.connectors_name[currentConnectorIndex] }}
+                      </li>
+                      <li>
+                        {{ chargerDetail.connectors_status[currentConnectorIndex] }}
+                      </li>
+                    </ul>
+                  </div>
+                  <button (click)="nextConnector()">Next</button>
+                </div>
+              </div>              
             </div>
           </div>
         </div>
     </div>
 </div>
+<style>
+.carousel-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.carousel-item {
+  flex-grow: 1;
+  text-align: center;
+  display: contents;
+  padding: 10px;
+  color: black;
+  font-size: 16px; 
+  min-width: 100px;
+  min-height: 50px; 
+}
+
+button {
+  background-color: rgb(30, 126, 255); /* Green */
+  border: none;
+  color: white;
+  padding: 15px 32px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+}
+
+.status-available {
+  color: green; 
+}
+
+.status-charging {
+  color: orange; 
+}
+
+.status-unavailable {
+  color: red; 
+}
+
+.status-faulted {
+  color: red; 
+}
+
+
+</style>

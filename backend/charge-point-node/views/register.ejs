@@ -36,7 +36,7 @@
                     <label for="connectors">Connectors</label>
                     <div id="connectors">
                         <div class="connector">
-                            <select class="form-control" name="connectors">
+                            <select class="form-control" name="connectors[type]">
                                 <option value="AC Type1">AC Type1</option>
                                 <option value="AC Type2">AC Type2</option>
                                 <option value="AC GB/T">AC GB/T</option>
@@ -44,6 +44,17 @@
                                 <option value="DC CSS 2">DC CSS 2</option>
                                 <option value="CHAdeMO">CHAdeMO</option>
                                 <option value="DC GB/T">DC GB/T</option>
+                            </select>
+                            <select class="form-control" name="connectors[status]">
+                                <option value="Available">Available</option>
+                                <option value="Preparing">Preparing</option>
+                                <option value="Charging">Charging</option>
+                                <option value="SuspendedEVSE">SuspendedEVSE</option>
+                                <option value="SuspendedEV">SuspendedEV</option>
+                                <option value="Finishing">Finishing</option>
+                                <option value="Reserved">Reserved</option>
+                                <option value="Unavailable">Unavailable</option>
+                                <option value="Faulted">Faulted</option>
                             </select>
                             <button type="button" class="btn btn-danger remove-connector">Remove</button>
                         </div>
