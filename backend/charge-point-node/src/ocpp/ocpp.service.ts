@@ -1,38 +1,59 @@
 import { Logger, Injectable, OnApplicationBootstrap, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
-import { BootNotificationRequest, BootNotificationResponse, HeartbeatRequest, HeartbeatResponse, OcppClientConnection, OcppServer, UnlockConnectorRequest, UnlockConnectorResponse, AuthorizeResponse, AuthorizeRequest, StartTransactionRequest, StartTransactionResponse, StopTransactionRequest, StopTransactionResponse } from 'ocpp-ts';
+import { BootNotificationRequest, BootNotificationResponse, HeartbeatRequest, HeartbeatResponse, OcppClientConnection, OcppServer, UnlockConnectorRequest, UnlockConnectorResponse, AuthorizeResponse, AuthorizeRequest, StartTransactionRequest, StartTransactionResponse, StopTransactionRequest, StopTransactionResponse, MeterValuesRequest, MeterValuesResponse } from 'ocpp-ts';
 import { Model } from 'mongoose';
 import { MongoError } from 'mongodb';
 import { randomBytes, scrypt as _scrypt } from "crypto";
 import { promisify } from "util";
 import { ChargePoint } from './schemas/charge.point.schemas';
 import { CreateCPDto,Status,Connector } from './dtos/create.cp.dto';
+import { Transaction } from './schemas/transactions.schema';
+import { CreateTransaction, StopReason } from './dtos/create.transaction.dto';
 
 const scrypt = promisify(_scrypt);
 
-interface ChargePointData {
-    chargePoints: { [cpId: string]: {
-        chargePoint: ChargePoint;
-        connectorStatus: { [connectorId: number]: Status };
-        transactions: { 
-            authorization: AuthorizeResponse,
-            start: StartTransactionResponse,
-            end: StopTransactionResponse
-        } ;
-    } };
-}
+interface ConnectorStatus {
+    status: Status;
+    meterValues?: MeterValuesRequest;
+  }
+  
+  interface Transactions {
+    authorization: AuthorizeResponse;
+    start: StartTransactionResponse;
+    end: StopTransactionResponse;
+  }
+  
+  interface ChargePointInfo {
+    chargePoint: ChargePoint;
+    connectorStatus: { [connectorId: number]: ConnectorStatus };
+    transactions: Transactions;
+  }
+  
+  interface ChargePointData {
+    chargePoints: { [cpId: string]: ChargePointInfo };
+  }
 
 @Injectable()
 export class OcppService implements OnApplicationBootstrap {
     private data: ChargePointData = {
         chargePoints: {},
     };
-
+    private transaction: CreateTransaction = new this.transactionModel({
+        connectorId: 0,
+        idTag: '',
+        meterStart: 0,
+        startTimestamp: new Date(),
+        transactionId: 0,
+        meterStop: 0,
+        stopTimestamp: new Date(),
+        stopReason: StopReason.Other,
+    });
     constructor(
         private readonly MyOcppServer: OcppServer,
         private readonly amqpConnection: AmqpConnection,
         @InjectModel(ChargePoint.name) private readonly chargePointModel: Model<ChargePoint>,
+        @InjectModel(Transaction.name) private readonly transactionModel: Model<Transaction>,
     ) { }
 
     private readonly logger = new Logger(OcppService.name);
@@ -144,6 +165,25 @@ export class OcppService implements OnApplicationBootstrap {
                 cb(response);
             });
 
+            client.on('MeterValues', async (request: MeterValuesRequest, cb: (response: MeterValuesResponse) => void) => {
+                this.logger.log(`MeterValues request received from ${client.getCpId()}`);
+                const chargePointData = this.data.chargePoints[client.getCpId()];
+                if (!chargePointData) {
+                    this.logger.error(`Charge point with ID ${client.getCpId()} not found`);
+                    return;
+                }
+
+                chargePointData.connectorStatus[request.connectorId] = {
+                    status: Status.Charging,
+                    meterValues: request
+                };
+                this.logger.log(`MeterValues request received from ${client.getCpId()} with meterValue ${request.meterValue}`);
+                const response: MeterValuesResponse = {
+                    
+                };
+                cb(response);
+            });
+
             client.on('StartTransaction', async (request: StartTransactionRequest, cb: (response: StartTransactionResponse) => void) => {
                 this.logger.log(`StartTransaction request received from ${client.getCpId()}`);
                 const chargePointData = this.data.chargePoints[client.getCpId()];
@@ -160,6 +200,7 @@ export class OcppService implements OnApplicationBootstrap {
                         }
                     };
                     cb(response);
+                    return;
                 }
                 chargePointData.transactions.start.idTagInfo = {
                     status: 'Accepted'
@@ -169,6 +210,11 @@ export class OcppService implements OnApplicationBootstrap {
                 chargePointData.transactions.start.transactionId = id;
                 await this.updateTransactionStatus(client.getCpId(), id,request.connectorId, 'Accepted');
                 const response: StartTransactionResponse = chargePointData.transactions.start;
+                this.transaction.connectorId = request.connectorId;
+                this.transaction.idTag = chargePointData.transactions.authorization.idTagInfo.status;
+                this.transaction.meterStart = request.meterStart;
+                this.transaction.startTimestamp = new Date();
+                this.transaction.transactionId = id;
                 cb(response);
             });
 
@@ -183,7 +229,9 @@ export class OcppService implements OnApplicationBootstrap {
                 chargePointData.transactions.end.idTagInfo = {
                     status: 'Accepted'
                 };
-
+                this.transaction.meterStop = request.meterStop;
+                this.transaction.stopTimestamp = new Date();
+                this.transaction.stopReason = request.reason;
                 await this.updateTransactionStatus(client.getCpId(), request.transactionId,0, 'Invalid');
                 const response: StopTransactionResponse = chargePointData.transactions.end;
                 cb(response);
@@ -222,6 +270,7 @@ export class OcppService implements OnApplicationBootstrap {
             this.chargePointModel.findOne({ _id: chargePointData.chargePoint._id }).then(chargePoint => {
                 chargePoint.status = Status.Charging;
                 chargePoint.connectors[connectorId].status = Status.Charging;
+                chargePoint.markModified('connectors');
                 this.logger.log(`status::: ${chargePoint}`);
                 chargePoint.save();
             }).catch(err => {
@@ -232,17 +281,21 @@ export class OcppService implements OnApplicationBootstrap {
             this.logger.log(`Transaction ${transactionId} ended`);
             this.chargePointModel.findOne({ _id: chargePointData.chargePoint._id }).then(chargePoint => {
                 chargePoint.status = Status.Available;
+                chargePoint.connectors[connectorId].status = Status.Available;
+                chargePoint.markModified('connectors');
                 this.logger.log(`status::: ${chargePoint}`);
                 chargePoint.save();
             }).catch(err => {
                 this.logger.error(`Error updating transaction status: ${err}`);
             });
+            await this.transactionModel.create(this.transaction);
+            this.transaction = this.newEmptyTransaction();
         }
     }
 
     async findBySerialNumber(serial_number: any): Promise<ChargePoint> {
         this.logger.log(`Finding charge point by serial number: ${serial_number}`);
-        return this.chargePointModel.findOne({ serial_number: serial_number }).exec();
+        return await this.chargePointModel.findOne({ serial_number: serial_number }).exec();
     }
 
     async registerChargePoint(body: CreateCPDto): Promise<ChargePoint> {
@@ -278,5 +331,18 @@ export class OcppService implements OnApplicationBootstrap {
 
     async getConnectorStatus(connectorId: string) {
         return this.chargePointModel.find({ connectors: { $elemMatch: { connectorId: connectorId } } }).exec();
+    }
+
+    newEmptyTransaction(): CreateTransaction {
+        return new this.transactionModel({
+            connectorId: 0,
+            idTag: '',
+            meterStart: 0,
+            startTimestamp: new Date(),
+            transactionId: 0,
+            meterStop: 0,
+            stopTimestamp: new Date(),
+            stopReason: StopReason.Other,
+        });
     }
 }

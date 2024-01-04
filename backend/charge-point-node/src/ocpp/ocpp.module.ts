@@ -12,6 +12,7 @@ import { ChargePoint, ChargePointSchema } from './schemas/charge.point.schemas';
 import { OcppService as Ocpp2Service } from './ocpp.new.service';
 import { OcppService as Ocpp1Service } from './ocpp.service';
 import { OcppController } from './ocpp.controller';
+import { Transaction, TransactionSchema } from './schemas/transactions.schema';
 
 @Module({
   imports: [
@@ -33,7 +34,15 @@ import { OcppController } from './ocpp.controller';
           schema.plugin(AutoIncrementID, { field: 'cpId' } as AutoIncrementIDOptions)
           return schema
         }
-      }
+      },
+      {
+        name: Transaction.name,
+        inject: [getConnectionToken()],
+        useFactory: (connection: mongoose.Connection): ModelDefinition['schema'] => {
+          const schema = TransactionSchema
+          schema.plugin(AutoIncrementID, { field: 'transactionId' } as AutoIncrementIDOptions)
+          return schema
+      },}
     ]),
   ],
   providers: [Ocpp1Service, Ocpp2Service, OcppServer2, OcppServer1],
