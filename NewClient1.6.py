@@ -113,6 +113,13 @@ class MyChargePoint(cp):
         response = await self.call(request)
         return response
 
+    async def send_meter_values_loop(self, connector_id, transaction_id, meter_value, increment_value, counter):
+        for i in range(counter):
+            await self.send_meter_values(connector_id, transaction_id, meter_value)
+            meter_value += increment_value
+            await asyncio.sleep(1)
+        
+
     async def send_status_notification(self, connector_id, status):
         request = call.StatusNotificationPayload(
             connector_id=connector_id,
@@ -214,38 +221,34 @@ class OCPPSimulatorGUI:
         self.stop_transaction_button.pack()
 
         # Connector Status
-        connector_status_label = tk.Label(self.root, text="Connector Status")
-        connector_status_label.pack()
-        connector_status_combobox = ttk.Combobox(self.root, values=["Available", "Preparing", "Charging", "SuspendedEV", "SuspendedEVSE", "Finishing", "Reserved", "Faulted", "Offline"])
-        connector_status_combobox.pack()
-
-        # Send Meter Values button
-        send_meter_values_button = tk.Button(self.root, text="Send Meter Values")
-        send_meter_values_button.pack()
-
-        # Increment value
-        increment_value_label = tk.Label(self.root, text="Increment value")
-        increment_value_label.pack()
-        increment_value_entry = tk.Entry(self.root)
-        increment_value_entry.pack()
-
-        # Counter
-        counter_label = tk.Label(self.root, text="Counter")
-        counter_label.pack()
-        counter_entry = tk.Entry(self.root)
-        counter_entry.pack()
-
-        # Send Meter Values loop button
-        send_meter_values_loop_button = tk.Button(self.root, text="Send Meter Values loop")
-        send_meter_values_loop_button.pack()
+        self.connector_status_label = tk.Label(self.root, text="Connector Status")
+        self.connector_status_label.pack()
+        self.connector_status_combobox = ttk.Combobox(self.root, values=["Available", "Preparing", "Charging", "SuspendedEV", "SuspendedEVSE", "Finishing", "Reserved", "Faulted", "Offline"])
+        self.connector_status_combobox.pack()
 
         # Status Notification button
-        status_notification_button = tk.Button(self.root, text="Status Notification")
-        status_notification_button.pack()
+        self.status_notification_button = tk.Button(self.root, text="Status Notification")
+        self.status_notification_button.pack()
 
-        # Data Transfer button
-        data_transfer_button = tk.Button(self.root, text="Data Transfer")
-        data_transfer_button.pack()
+        # Increment value
+        self.increment_value_label = tk.Label(self.root, text="Increment value")
+        self.increment_value_label.pack()
+        self.increment_value_entry = tk.Entry(self.root)
+        self.increment_value_entry.pack()
+
+        # Counter
+        self.counter_label = tk.Label(self.root, text="Counter")
+        self.counter_label.pack()
+        self.counter_entry = tk.Entry(self.root)
+        self.counter_entry.pack()
+
+        # Send Meter Values button
+        self.send_meter_values_button = tk.Button(self.root, text="Send Meter Values", command=self.send_meter_values)
+        self.send_meter_values_button.pack()
+
+        # Send Meter Values loop button
+        self.send_meter_values_loop_button = tk.Button(self.root, text="Send Meter Values loop", command=self.send_meter_values_loop)
+        self.send_meter_values_loop_button.pack()
 
         # Console
         self.console = ScrolledText(self.root, state="disabled", height=10, width=80,wrap=tk.WORD)
@@ -313,6 +316,33 @@ class OCPPSimulatorGUI:
         except Exception as e:
             self.log_to_console(f"An error occurred: {e}", "error")
 
+    def send_meter_values(self):
+        connector_id_value = self.connector_uid_entry.get()
+        meter_value_value = self.meter_value_entry.get()
+        if connector_id_value == "" or meter_value_value == "":
+            self.log_to_console("Please fill in all fields.", "error")
+            return
+        self.log_to_console(f"Sending Meter Values with Connector ID: {connector_id_value}, Meter Value: {meter_value_value}")
+
+        try:
+            asyncio.run_coroutine_threadsafe(self.charge_point.send_meter_values(connector_id_value, self.charge_point.transactionId, meter_value_value), asyncio.get_event_loop())
+        except Exception as e:
+            self.log_to_console(f"An error occurred: {e}", "error")
+    
+    def send_meter_values_loop(self):
+        connector_id_value = self.connector_uid_entry.get()
+        meter_value_value = self.meter_value_entry.get()
+        increment_value_value = self.increment_value_entry.get()
+        counter_value = self.counter_entry.get()
+        if connector_id_value == "" or meter_value_value == "" or increment_value_value == "" or counter_value == "":
+            self.log_to_console("Please fill in all fields.", "error")
+            return
+        self.log_to_console(f"Sending Meter Values with Connector ID: {connector_id_value}, Meter Value: {meter_value_value}, Increment Value: {increment_value_value}, Counter: {counter_value}")
+
+        try:
+            asyncio.run_coroutine_threadsafe(self.charge_point.send_meter_values_loop(connector_id_value, self.charge_point.transactionId, meter_value_value, increment_value_value, counter_value), asyncio.get_event_loop())
+        except Exception as e:
+            self.log_to_console(f"An error occurred: {e}", "error")
 
     def start_transaction_action(self):
         connector_id_value = self.connector_uid_entry.get()

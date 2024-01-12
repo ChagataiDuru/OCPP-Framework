@@ -1,15 +1,19 @@
 import { Logger, Injectable, OnApplicationBootstrap, HttpException, HttpStatus } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { BootNotificationRequest, BootNotificationResponse, HeartbeatRequest, HeartbeatResponse, OcppClientConnection, OcppServer, UnlockConnectorRequest, UnlockConnectorResponse, AuthorizeResponse, AuthorizeRequest, StartTransactionRequest, StartTransactionResponse, StopTransactionRequest, StopTransactionResponse, MeterValuesRequest, MeterValuesResponse, StatusNotificationRequest, StatusNotificationResponse, FirmwareStatusNotificationRequest, FirmwareStatusNotificationResponse } from 'ocpp-ts';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
-import { BootNotificationRequest, BootNotificationResponse, HeartbeatRequest, HeartbeatResponse, OcppClientConnection, OcppServer, UnlockConnectorRequest, UnlockConnectorResponse, AuthorizeResponse, AuthorizeRequest, StartTransactionRequest, StartTransactionResponse, StopTransactionRequest, StopTransactionResponse, MeterValuesRequest, MeterValuesResponse } from 'ocpp-ts';
+
+import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { MongoError } from 'mongodb';
+
 import { randomBytes, scrypt as _scrypt } from "crypto";
 import { promisify } from "util";
+
 import { ChargePoint } from './schemas/charge.point.schemas';
-import { CreateCPDto,Status,Connector } from './dtos/create.cp.dto';
 import { Transaction } from './schemas/transactions.schema';
+
 import { CreateTransaction, StopReason } from './dtos/create.transaction.dto';
+import { CreateCPDto,Status,Connector } from './dtos/create.cp.dto';
 
 const scrypt = promisify(_scrypt);
 
@@ -117,6 +121,37 @@ export class OcppService implements OnApplicationBootstrap {
                 cb(response);
             });
 
+            client.on('StatusNotification', async (request: StatusNotificationRequest, cb: (response: StatusNotificationResponse) => void) => {
+                    this.logger.log(`StatusNotification request received from ${client.getCpId()}`);
+                    const chargePointData = this.data.chargePoints[client.getCpId()];
+                    if (!chargePointData) {
+                        this.logger.error(`Charge point with ID ${client.getCpId()} not found`);
+                        return;
+                        }
+                        const chargePoint = chargePointData.chargePoint;
+                        const connectorId = request.connectorId;
+                        const status = request.status;
+                        await this.chargePointModel.updateOne({ _id: chargePoint._id }, { status: status });
+                        this.logger.log(`StatusNotification request received from ${client.getCpId()} with status ${status}`);
+                        const response: StatusNotificationResponse = {};
+                        cb(response);
+                });
+            
+            client.on('FirmwareStatusNotification', async (request: FirmwareStatusNotificationRequest, cb: (response: FirmwareStatusNotificationResponse) => void) => {
+                this.logger.log(`FirmwareStatusNotification request received from ${client.getCpId()}`);
+                const chargePointData = this.data.chargePoints[client.getCpId()];
+                if (!chargePointData) {
+                    this.logger.error(`Charge point with ID ${client.getCpId()} not found`);
+                    return;
+                }
+                const chargePoint = chargePointData.chargePoint;
+                const status = request.status;
+                await this.chargePointModel.updateOne({ _id: chargePoint._id }, { status: status });
+                this.logger.log(`FirmwareStatusNotification request received from ${client.getCpId()} with status ${status}`);
+                const response: FirmwareStatusNotificationResponse = {};
+                cb(response);
+            });
+
             client.on('Heartbeat', async (request: HeartbeatRequest, cb: (response: HeartbeatResponse) => void) => {
                 const response: HeartbeatResponse = {
                     currentTime: new Date().toISOString(),
@@ -177,10 +212,9 @@ export class OcppService implements OnApplicationBootstrap {
                     status: Status.Charging,
                     meterValues: request
                 };
-                this.logger.log(`MeterValues request received from ${client.getCpId()} with meterValue ${request.meterValue}`);
-                const response: MeterValuesResponse = {
-                    
-                };
+
+                this.logger.log(`MeterValues request received from ${client.getCpId()} with meterValue ${JSON.stringify(request.meterValue)}`);
+                const response: MeterValuesResponse = {};
                 cb(response);
             });
 
@@ -260,11 +294,13 @@ export class OcppService implements OnApplicationBootstrap {
         this.logger.log(`Transaction ${transactionId} status updated to ${status}`);
         if (status === 'Accepted') {
             chargePointData.transactions.end.idTagInfo.status = 'Invalid';
+
             const message = {
                 id: chargePointId,
                 charger: this.data.chargePoints[chargePointId].chargePoint,
                 lastActivity: 60,
             };
+            
             await this.amqpConnection.publish('management.system', 'transaction.routing.key', message);
             this.logger.log(`Transaction ${transactionId} started`);
             this.chargePointModel.findOne({ _id: chargePointData.chargePoint._id }).then(chargePoint => {

@@ -112,6 +112,7 @@ export class DetailComponent implements OnInit {
       default:
         return ''; 
     }
+    
   }
 
 }
