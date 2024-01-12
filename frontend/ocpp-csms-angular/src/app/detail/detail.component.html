@@ -24,22 +24,22 @@
                 <div class="carousel-container">
                   <button (click)="previousConnector()">Previous</button>
                   <div class="carousel-item">
-                    <div class="card mb-3" style="width: 18rem;">
+                    <div class="card shadow mb-3" style="width: 18rem;">
                       <div class="card-body">
                         <h5 class="card-title">{{ chargerDetail.connectors_name[currentConnectorIndex] }}</h5>
                         <p class="card-text">{{ chargerDetail.connectors_status[currentConnectorIndex] }}</p>
                       </div>
                     </div>
-                    <div class="card mb-3" *ngIf="chargerDetail.connectors_status[currentConnectorIndex] === 'Charging'" style="width: 18rem;">
+                    <div class="card shadow mb-3" *ngIf="chargerDetail.connectors_status[currentConnectorIndex] === 'Charging'" style="width: 18rem;">
                       <div class="card-body">
                         <h5 class="card-title">Start Meter</h5>
-                        <p class="card-text">{{ chargerDetail.connectors_startMeter[currentConnectorIndex] }}</p>
+                        <p class="card-text">{{ chargerDetail.connectors[currentConnectorIndex].startMeterValue }}</p>
                       </div>
                     </div>
-                    <div class="card mb-3" *ngIf="chargerDetail.connectors_status[currentConnectorIndex] === 'Charging'" style="width: 18rem;">
+                    <div class="card shadow mb-3" *ngIf="chargerDetail.connectors_status[currentConnectorIndex] === 'Charging'" style="width: 18rem;">
                       <div class="card-body">
                         <h5 class="card-title">Charging Time</h5>
-                        <p class="card-text">{{ chargerDetail.connectors_chargingTime[currentConnectorIndex] }}</p>
+                        <p class="card-text">{{ chargerDetail.connectors[currentConnectorIndex].currentMeterValue }}</p>
                       </div>
                     </div>
                   </div>

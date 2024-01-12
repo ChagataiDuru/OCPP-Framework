@@ -3,6 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { ConfigService } from '../config.service';
 import { SseService } from '../sse.service';
+import { Observable } from 'rxjs';
 
 export enum ConnectorType {
   ACType1 = 'AC Type1',
@@ -29,6 +30,8 @@ export enum Status {
 export interface Connector {
   type: ConnectorType;
   status: Status;
+  startMeterValue?: number;
+  currentMeterValue?: number;
 }
 
 export interface CPDto {
@@ -45,6 +48,15 @@ export interface CPDto {
   connectors: Connector[];
 }
 
+export interface MeterValueRequestDto {
+  cpId: number;
+  connectorId: number;
+}
+
+export interface MeterValueResponseDto {
+  currentMeterValue: number;
+}
+
 @Component({
   selector: 'app-detail',
   templateUrl: './detail.component.html',
@@ -59,6 +71,7 @@ export class DetailComponent implements OnInit {
     serial_number: '',
     connectors_name: [] as ConnectorType[],
     connectors_status: [] as Status[],
+    connectors: [] as Connector[]
   };
   
   constructor(private route: ActivatedRoute,private http: HttpClient, private configService: ConfigService, private _sseService: SseService) {}
@@ -77,9 +90,19 @@ export class DetailComponent implements OnInit {
         manufacturer: charger.manufacturer,
         serial_number: charger.serial_number,
         connectors_name: connectorsNameArray,
-        connectors_status: connectorStatusArray
+        connectors_status: connectorStatusArray,
+        connectors: charger.connectors
       };
     });
+    setInterval(() => {
+      this.chargerDetail.connectors.forEach((connector, index) => {
+        if (connector.status === 'Charging') {
+          this._sseService.getConnectorCurrentMeterValue(this.chargerDetail.cpId, index).subscribe(response => {
+            connector.currentMeterValue = response.currentMeterValue;
+          });
+        }
+      });
+    }, 5000);
   }
 
   currentConnectorIndex = 0;
@@ -90,7 +113,7 @@ export class DetailComponent implements OnInit {
       console.log('Current Connector Index:', this.currentConnectorIndex);
     }
   }
-  
+
   nextConnector() {
     if (this.currentConnectorIndex < this.chargerDetail.connectors_name.length - 1) {
       this.currentConnectorIndex++;
@@ -112,7 +135,10 @@ export class DetailComponent implements OnInit {
       default:
         return ''; 
     }
-    
+  }
+
+  getConnectorCurrentMeterValue(cpId: number, connectorId: number): Observable<MeterValueResponseDto> {
+    return this.http.get<MeterValueResponseDto>(`${this.configService.getApiUrl()}/chargers/${cpId}/connectors/${connectorId}/meterValue`);
   }
 
 }
