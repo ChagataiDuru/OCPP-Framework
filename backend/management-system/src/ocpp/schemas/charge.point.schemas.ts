@@ -30,6 +30,12 @@ class Connector {
 
   @Prop({ type: String, enum: Object.values(Status) })
   status: Status;
+
+  @Prop()
+  meterValue: number;
+
+  @Prop({ default: Date.now })
+  startTimestamp: Date;
 }
 
 @Schema()
@@ -41,8 +47,8 @@ export class ChargePoint extends Document {
   @Prop()
   description: string;
 
-  @Prop({ type: String, enum: Object.values(Status), default: [Status.Unavailable], index: true })
-  status: string;
+  @Prop({ type: String, enum: Object.values(Status), default: Status.Unavailable, index: true })
+  status: Status;
 
   @Prop({ required: true })
   manufacturer: string;

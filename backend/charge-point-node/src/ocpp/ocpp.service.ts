@@ -6,7 +6,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { MongoError } from 'mongodb';
 
-import { randomBytes, scrypt as _scrypt } from "crypto";
+import { randomBytes, scrypt as _scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
 import { ChargePoint } from './schemas/charge.point.schemas';
@@ -14,6 +14,7 @@ import { Transaction } from './schemas/transactions.schema';
 
 import { CreateTransaction, StopReason } from './dtos/create.transaction.dto';
 import { CreateCPDto,Status,Connector } from './dtos/create.cp.dto';
+import { start } from 'repl';
 
 const scrypt = promisify(_scrypt);
 
@@ -200,24 +201,6 @@ export class OcppService implements OnApplicationBootstrap {
                 cb(response);
             });
 
-            client.on('MeterValues', async (request: MeterValuesRequest, cb: (response: MeterValuesResponse) => void) => {
-                this.logger.log(`MeterValues request received from ${client.getCpId()}`);
-                const chargePointData = this.data.chargePoints[client.getCpId()];
-                if (!chargePointData) {
-                    this.logger.error(`Charge point with ID ${client.getCpId()} not found`);
-                    return;
-                }
-
-                chargePointData.connectorStatus[request.connectorId] = {
-                    status: Status.Charging,
-                    meterValues: request
-                };
-
-                this.logger.log(`MeterValues request received from ${client.getCpId()} with meterValue ${JSON.stringify(request.meterValue)}`);
-                const response: MeterValuesResponse = {};
-                cb(response);
-            });
-
             client.on('StartTransaction', async (request: StartTransactionRequest, cb: (response: StartTransactionResponse) => void) => {
                 this.logger.log(`StartTransaction request received from ${client.getCpId()}`);
                 const chargePointData = this.data.chargePoints[client.getCpId()];
@@ -255,6 +238,7 @@ export class OcppService implements OnApplicationBootstrap {
             client.on('StopTransaction', async (request: StopTransactionRequest, cb: (response: StopTransactionResponse) => void) => {
                 this.logger.log(`StopTransaction request received from ${client.getCpId()}`);
                 const chargePointData = this.data.chargePoints[client.getCpId()];
+
                 if (!chargePointData) {
                     this.logger.error(`Charge point with ID ${client.getCpId()} not found`);
                     return;
@@ -266,10 +250,42 @@ export class OcppService implements OnApplicationBootstrap {
                 this.transaction.meterStop = request.meterStop;
                 this.transaction.stopTimestamp = new Date();
                 this.transaction.stopReason = request.reason;
-                await this.updateTransactionStatus(client.getCpId(), request.transactionId,0, 'Invalid');
+                this.logger.log(`StopTransaction request received from ${client.getCpId()} with transactionId ${request.transactionId} on connector ${this.transaction.connectorId}`);
+                await this.updateTransactionStatus(client.getCpId(), request.transactionId , this.transaction.connectorId, 'Invalid');
                 const response: StopTransactionResponse = chargePointData.transactions.end;
                 cb(response);
             });
+
+            client.on('MeterValues', async (request: MeterValuesRequest, cb: (response: MeterValuesResponse) => void) => {
+                const chargePointData = this.data.chargePoints[client.getCpId()];
+
+                if (!chargePointData) {
+                    this.logger.error(`Charge point with ID ${client.getCpId()} not found`);
+                    return;
+                }
+
+                chargePointData.connectorStatus[request.connectorId] = {
+                    status: Status.Charging,
+                    meterValues: request
+                };
+
+                this.logger.log(`MeterValues request received from ${client.getCpId()} with meterValue ${JSON.stringify(request.meterValue)}`);
+
+                const chargePoint = await this.chargePointModel.findOne({ _id: chargePointData.chargePoint._id });
+                this.logger.log(`Value: ${parseInt(request.meterValue[0].sampledValue[0].value)}`);
+                chargePoint.connectors[request.connectorId].meterValue = parseInt(request.meterValue[0].sampledValue[0].value);
+                chargePoint.markModified('connectors');
+                chargePoint.save();
+                this.logger.log('Saved: ', request.connectorId);
+                const requestWithSerialNumber = {
+                    ...request,
+                    chargePointSerialNumber: chargePointData.chargePoint.serial_number,
+                };
+                await this.amqpConnection.publish('management.system', 'charging.routing.key', requestWithSerialNumber);
+                const response: MeterValuesResponse = {};
+                cb(response);
+            });
+
         });
     }
 
@@ -298,28 +314,33 @@ export class OcppService implements OnApplicationBootstrap {
             const message = {
                 id: chargePointId,
                 charger: this.data.chargePoints[chargePointId].chargePoint,
+                connectorId: connectorId,
+                serial_number: chargePointData.chargePoint.serial_number,
+                startTimestamp: new Date(),
                 lastActivity: 60,
             };
-            
-            await this.amqpConnection.publish('management.system', 'transaction.routing.key', message);
-            this.logger.log(`Transaction ${transactionId} started`);
+            this.logger.log(`Transaction ${transactionId} started on ${chargePointId} in connector ${connectorId}`);
             this.chargePointModel.findOne({ _id: chargePointData.chargePoint._id }).then(chargePoint => {
                 chargePoint.status = Status.Charging;
                 chargePoint.connectors[connectorId].status = Status.Charging;
+                chargePoint.connectors[connectorId].meterValue = this.transaction.meterStart;
+                chargePoint.connectors[connectorId].startTimestamp = this.transaction.startTimestamp;
                 chargePoint.markModified('connectors');
-                this.logger.log(`status::: ${chargePoint}`);
+                this.logger.log(`status::: ${chargePoint.status}`);
                 chargePoint.save();
             }).catch(err => {
                 this.logger.error(`Error updating transaction status: ${err}`);
             });
+            await this.amqpConnection.publish('management.system', 'transaction.routing.key', message);
+
         }
         else if (status === 'Invalid') {
-            this.logger.log(`Transaction ${transactionId} ended`);
+            this.logger.log(`Transaction ${transactionId} ended for connector ${connectorId}`);
             this.chargePointModel.findOne({ _id: chargePointData.chargePoint._id }).then(chargePoint => {
                 chargePoint.status = Status.Available;
                 chargePoint.connectors[connectorId].status = Status.Available;
+                chargePoint.connectors[connectorId].meterValue = 0;
                 chargePoint.markModified('connectors');
-                this.logger.log(`status::: ${chargePoint}`);
                 chargePoint.save();
             }).catch(err => {
                 this.logger.error(`Error updating transaction status: ${err}`);

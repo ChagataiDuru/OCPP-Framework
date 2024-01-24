@@ -5,6 +5,18 @@ import { MatTableDataSource } from '@angular/material/table';
 import { SseService } from '../sse.service';
 import { HttpClient } from '@angular/common/http';
 import { ConfigService } from '../config.service';
+import { ActivatedRoute } from '@angular/router';
+
+interface Transaction {
+  connectorId: string;
+  idTag: string;
+  meterStart: number;
+  startTimestamp: string;
+  transactionId: string;
+  meterStop: number;
+  stopTimestamp: string;
+  stopReason: string;
+}
 
 @Component({
   moduleId: module.id,
@@ -12,13 +24,13 @@ import { ConfigService } from '../config.service';
   templateUrl: './transactions.component.html',
 })
 export class TransactionComponent implements OnInit{
-  constructor(private _sseService: SseService,private http: HttpClient,private configService: ConfigService) {}
-  displayedColumns: string[] = ['id', 'station','connector','user','start','end','kwh','status'];
-  dataSource = new MatTableDataSource();
-  @ViewChild(MatPaginator) paginator: MatPaginator | undefined;
+  transactions: Transaction[] = [];
+  constructor(private route: ActivatedRoute,private http: HttpClient, private configService: ConfigService, private _sseService: SseService) {}
   ngOnInit() {
     const apiUrl = this.configService.getApiUrl();
-    this.dataSource.paginator = this.paginator!;
-    //this.http.get(`${apiUrl}/transactions`)
+    this.http.get<Transaction[]>(`${apiUrl}/transactions`).subscribe(data => {
+      console.log(data);
+      this.transactions = data;
+    });
   }
 }

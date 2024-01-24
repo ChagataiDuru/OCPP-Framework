@@ -3,7 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { ConfigService } from '../config.service';
 import { SseService } from '../sse.service';
-import { Observable } from 'rxjs';
+import { Subscription, interval } from 'rxjs';
 
 export enum ConnectorType {
   ACType1 = 'AC Type1',
@@ -30,8 +30,8 @@ export enum Status {
 export interface Connector {
   type: ConnectorType;
   status: Status;
-  startMeterValue?: number;
   currentMeterValue?: number;
+  chargeDuration?: number;
 }
 
 export interface CPDto {
@@ -55,6 +55,7 @@ export interface MeterValueRequestDto {
 
 export interface MeterValueResponseDto {
   currentMeterValue: number;
+  startTimestamp: Date;
 }
 
 @Component({
@@ -62,6 +63,8 @@ export interface MeterValueResponseDto {
   templateUrl: './detail.component.html',
 })
 export class DetailComponent implements OnInit {
+
+  subscription: Subscription | undefined;
 
   chargerDetail = {
     cpId: 0,
@@ -71,13 +74,13 @@ export class DetailComponent implements OnInit {
     serial_number: '',
     connectors_name: [] as ConnectorType[],
     connectors_status: [] as Status[],
-    connectors: [] as Connector[]
+    connectors: [] as Connector[],
+    connector_charge_duration: 0
   };
   
   constructor(private route: ActivatedRoute,private http: HttpClient, private configService: ConfigService, private _sseService: SseService) {}
-
   ngOnInit() {
-    const apiUrl = this.configService.getApiUrl();
+    let apiUrl = this.configService.getApiUrl();
     const cpId = this.route.snapshot.paramMap.get('cp');
     this.http.get<CPDto>(`${apiUrl}/chargers/${cpId}`).subscribe(charger => {
       const connectorsNameArray = Object.values(charger.connectors).map(connector => connector.type);
@@ -91,21 +94,39 @@ export class DetailComponent implements OnInit {
         serial_number: charger.serial_number,
         connectors_name: connectorsNameArray,
         connectors_status: connectorStatusArray,
-        connectors: charger.connectors
+        connectors: charger.connectors,
+        connector_charge_duration: 0
       };
-    });
-    setInterval(() => {
-      this.chargerDetail.connectors.forEach((connector, index) => {
-        if (connector.status === 'Charging') {
-          this._sseService.getConnectorCurrentMeterValue(this.chargerDetail.cpId, index).subscribe(response => {
-            connector.currentMeterValue = response.currentMeterValue;
-          });
-        }
+  
+      const timer = interval(2000);
+      this.subscription = timer.subscribe(() => {
+        this.getMeterValue(apiUrl);
       });
-    }, 5000);
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+    }
   }
 
   currentConnectorIndex = 0;
+
+  async getMeterValue(apiUrl: string) {
+      this.chargerDetail.connectors.forEach((connector, index) => {
+        if (connector.status === 'Charging') {
+          this.http.get<MeterValueResponseDto>(`${apiUrl}/meter?cpId=${this.chargerDetail.serial_number}&connectorId=${index}`).subscribe(meterValue => {
+            console.log('Meter value: ', meterValue);
+            connector.currentMeterValue = meterValue.currentMeterValue;
+            let timeCharger = Math.abs(new Date().getTime() - new Date(meterValue.startTimestamp).getTime());
+            const theMinutes = timeCharger / (1000 * 60);
+            this.chargerDetail.connectors[index].chargeDuration = Math.floor(theMinutes);
+            this.chargerDetail.connectors[index].currentMeterValue = meterValue.currentMeterValue;
+          });
+        }
+      });
+  }
 
   previousConnector() {
     if (this.currentConnectorIndex > 0) {
@@ -135,10 +156,6 @@ export class DetailComponent implements OnInit {
       default:
         return ''; 
     }
-  }
-
-  getConnectorCurrentMeterValue(cpId: number, connectorId: number): Observable<MeterValueResponseDto> {
-    return this.http.get<MeterValueResponseDto>(`${this.configService.getApiUrl()}/chargers/${cpId}/connectors/${connectorId}/meterValue`);
   }
 
 }

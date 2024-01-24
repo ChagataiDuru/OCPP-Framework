@@ -6,7 +6,7 @@ import { Model } from 'mongoose';
 import { EventEmitter } from 'events';
 
 import { ChargePoint,Status } from './schemas/charge.point.schemas';
-
+import { Transaction } from './schemas/transaction.schemas';
 
 @Injectable()
 export class OcppService {
@@ -14,9 +14,12 @@ export class OcppService {
   private readonly logger = new Logger('OcppManager');
   public heartbeatEvent = new EventEmitter();
   public transactionEvent = new EventEmitter();
+  public meterValueEvent = new EventEmitter();
 
 
-  constructor(@InjectModel(ChargePoint.name) private readonly chargePointModel: Model<ChargePoint>,) {}
+  constructor(
+    @InjectModel(Transaction.name) private readonly transactionModel: Model<Transaction>,
+    @InjectModel(ChargePoint.name) private readonly chargePointModel: Model<ChargePoint>,) {}
 
   @RabbitSubscribe({
     exchange: 'management.system',
@@ -38,6 +41,15 @@ export class OcppService {
     this.transactionEvent.emit('transaction', msg);
   }
 
+  @RabbitSubscribe({
+    exchange: 'management.system',
+    routingKey: 'charging.routing.key',
+    queue: 'charging_queue',
+  })
+  public async handleCharging(msg: {}, amqpMsg: ConsumeMessage) {
+    //this.logger.log(`Received charging: ${JSON.stringify(msg)}`);
+  }
+
   async getAllChargePoints(): Promise<ChargePoint[]> {
     return this.chargePointModel.find().exec();
   }
@@ -54,12 +66,8 @@ export class OcppService {
     return this.chargePointModel.find({ status: Status.Charging }).exec();
   }
 
-  async getConnectorStatus(): Promise<any[]> {
-    const connectors = await this.chargePointModel.find().exec();
-    return connectors.map(connector => ({
-      id: connector.cpId,
-      status: connector.status,
-    }));
+  async getTransactions(): Promise<Transaction[]> {
+    return this.transactionModel.find().exec();
   }
 
 }

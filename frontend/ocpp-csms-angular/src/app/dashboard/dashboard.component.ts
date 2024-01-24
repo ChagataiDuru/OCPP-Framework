@@ -12,6 +12,7 @@ import { SseService } from '../sse.service';
 export class DashboardComponent implements OnInit {
   totalChargeStations = 0;
   activeClients = 0;
+  occupiedChargeStations = 0;
   apiUrl: string = '';
   constructor(private http: HttpClient, private configService: ConfigService, private _sseService: SseService, private cdr: ChangeDetectorRef) {
     this.apiUrl = this.configService.getApiUrl();
@@ -36,6 +37,9 @@ export class DashboardComponent implements OnInit {
     });
     this.http.get<any[]>(`${this.apiUrl}/chargers/available`).subscribe(chargers => {
       this.activeClients = chargers.length;
+    });
+    this.http.get<any[]>(`${this.apiUrl}/chargers/occupied`).subscribe(chargers => {
+      this.occupiedChargeStations += chargers.length;
     });
   }
 }

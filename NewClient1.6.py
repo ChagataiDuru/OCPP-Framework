@@ -56,16 +56,18 @@ class MyChargePoint(cp):
 
             print(f"Received start transaction response for {response}.")
             print(f"Transaction ID: {response.transaction_id}")
-            print(f"Status: {response.id_tag_info.status}")
+            print(f"Status: {response.id_tag_info}")
+            status = response.id_tag_info.get("status")
 
-            if response.id_tag_info.status == AuthorizationStatus.accepted:
+            if status == AuthorizationStatus.accepted:
+                print(f"Authorized for {id_tag} and transaction started.")
                 self.transactionId = response.transaction_id
-            elif response.id_tag_info.status == AuthorizationStatus.invalid:
+            elif status == AuthorizationStatus.invalid:
                 print(f"Invalid authorization for {id_tag}.")
                 return
-            return response.id_tag_info.status
+            return status
         except Exception as e:
-            print("An error occurred during the start transaction call")
+            print("An error occurred during the start transaction call",e)
 
     async def send_stop_transaction(self, meter_stop):
         request = call.StopTransactionPayload(
@@ -257,6 +259,10 @@ class OCPPSimulatorGUI:
         is_connected = False
         is_authorized = False
 
+        # Reset button
+        self.reset_button = tk.Button(self.root, text="Reset", command=self.reset_action)
+        self.reset_button.pack()
+
     def log_to_console(self, message, tag=""):
         self.console.config(state="normal")
         self.console.insert(tk.END, f"{message}\n", (tag,))
@@ -302,6 +308,7 @@ class OCPPSimulatorGUI:
     def handle_authorize_result(self):
         try:
             self.log_to_console("Authorization accepted")
+            self.rfid_tag_entry.config(state="disabled")
             self.authorize_button.config(state="disabled")
         except Exception as e:
             self.log_to_console(f"An error occurred: {e}", "error")
@@ -325,7 +332,10 @@ class OCPPSimulatorGUI:
         self.log_to_console(f"Sending Meter Values with Connector ID: {connector_id_value}, Meter Value: {meter_value_value}")
 
         try:
-            asyncio.run_coroutine_threadsafe(self.charge_point.send_meter_values(connector_id_value, self.charge_point.transactionId, meter_value_value), asyncio.get_event_loop())
+            task = asyncio.run_coroutine_threadsafe(
+                self.charge_point.send_meter_values(connector_id_value, self.charge_point.transactionId, meter_value_value),
+                asyncio.get_event_loop()
+            )
         except Exception as e:
             self.log_to_console(f"An error occurred: {e}", "error")
     
@@ -340,7 +350,10 @@ class OCPPSimulatorGUI:
         self.log_to_console(f"Sending Meter Values with Connector ID: {connector_id_value}, Meter Value: {meter_value_value}, Increment Value: {increment_value_value}, Counter: {counter_value}")
 
         try:
-            asyncio.run_coroutine_threadsafe(self.charge_point.send_meter_values_loop(connector_id_value, self.charge_point.transactionId, meter_value_value, increment_value_value, counter_value), asyncio.get_event_loop())
+            task = asyncio.run_coroutine_threadsafe(
+                self.charge_point.send_meter_values_loop(connector_id_value, self.charge_point.transactionId, int(meter_value_value), int(increment_value_value), int(counter_value)),
+                asyncio.get_event_loop()
+            )
         except Exception as e:
             self.log_to_console(f"An error occurred: {e}", "error")
 
@@ -357,6 +370,7 @@ class OCPPSimulatorGUI:
             task = asyncio.run_coroutine_threadsafe(
                 self.charge_point.send_start_transaction(connector_id_value, tag_value, meter_start_value),
                 asyncio.get_event_loop()
+
             )
         except Exception as e:
             self.log_to_console(f"An error occurred: {e}", "error")
@@ -379,6 +393,24 @@ class OCPPSimulatorGUI:
             )
         except Exception as e:
             self.log_to_console(f"An error occurred: {e}", "error")
+    
+    def reset_action(self):
+        self.charge_point = None
+        self.central_station_entry.config(state="normal")
+        self.central_station_serial_combobox.config(state="normal")
+        self.connect_button.config(state="normal")
+        self.rfid_tag_entry.config(state="normal")
+        self.authorize_button.config(state="normal")
+        self.connector_uid_entry.config(state="normal")
+        self.meter_value_entry.config(state="normal")
+        self.start_transaction_button.config(state="normal")
+        self.stop_transaction_button.config(state="normal")
+        self.increment_value_entry.config(state="normal")
+        self.counter_entry.config(state="normal")
+        self.send_meter_values_button.config(state="normal")
+        self.send_meter_values_loop_button.config(state="normal")
+        self.log_to_console("Resetted", "error")
+
 
 def main():
     root = tk.Tk()

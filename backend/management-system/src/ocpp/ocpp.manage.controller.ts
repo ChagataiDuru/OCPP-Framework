@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, Logger, NotFoundException, Param, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Logger, NotFoundException, Param, Query, Res, UseGuards } from '@nestjs/common';
 import { Serialize } from 'src/interceptors/serialize.interceptor';
 import { OcppService } from './ocpp.manage.service';
 import { Response } from 'express';
@@ -29,6 +29,14 @@ export class OcppController {
         this.logger.log(`Found ${totalChargers.length} available charge points`);
         return totalChargers;
     }
+  
+  @Get('/chargers/occupied')
+  async getOccupiedChargePoints(): Promise<any[]> {
+        this.logger.log(`Getting all occupied charge points`);
+        const chargers = await this.ocppService.getOccupiedChargePoints();
+        this.logger.log(`Found ${chargers.length} occupied charge points`);
+        return chargers;
+    }
 
   @Get('/chargers/:id')
   async getChargePoint(@Param('id') id: string): Promise<any> {
@@ -41,6 +49,14 @@ export class OcppController {
     return charger;
   }
 
+  @Get('/transactions')
+  async getTransactions(): Promise<any[]> {
+    this.logger.log(`Getting all transactions`);
+    const transactions = await this.ocppService.getTransactions();
+    this.logger.log(`Found ${transactions.length} transactions`);
+    return transactions;
+  }
+
   @Get('/heartbeat')
   sendHeartbeat(@Res() res: Response) {
       res.setHeader('Content-Type', 'text/event-stream');
@@ -49,17 +65,51 @@ export class OcppController {
       res.flushHeaders();
   
       if (!this.listener) {
-        this.listen();
+        this.listenHeartbeat();
         this.listener = true;
       }
 
       res.end();
   }
 
-  listen() {
+  listenHeartbeat() {
     this.ocppService.heartbeatEvent.on('heartbeat', (msg) => {
       console.log('Received heartbeat: ', msg);
     });
+  }
+
+  @Get('/metervalue')
+  sendMeterValue(@Res() res: Response) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    if (!this.listener) {
+      this.listenMeter();
+      this.listener = true;
+    }
+
+    res.end();
+  }
+
+  listenMeter() {
+    this.ocppService.meterValueEvent.on('charging', (msg) => {
+      console.log('Received meter: ', msg);
+    });
+  }
+
+  @Get('/meter')
+  async getMeterValue(@Query('cpId') serial_number: string, @Query('connectorId') connectorId: number): Promise<any> {
+      const charger = await this.ocppService.getChargePoint(serial_number);
+      if (!charger) {
+          throw new NotFoundException(`Charge point with serial number ${serial_number} not found`);
+      }
+      const connector = charger.connectors[connectorId];
+      if (!connector || connector.status !== 'Charging') {
+          throw new NotFoundException(`Connector with id ${connectorId} not found or not charging`);
+      }
+      return { currentMeterValue: connector.meterValue, startTimestamp: connector.startTimestamp};
   }
 
 }

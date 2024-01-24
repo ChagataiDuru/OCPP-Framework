@@ -32,14 +32,14 @@
                     </div>
                     <div class="card shadow mb-3" *ngIf="chargerDetail.connectors_status[currentConnectorIndex] === 'Charging'" style="width: 18rem;">
                       <div class="card-body">
-                        <h5 class="card-title">Start Meter</h5>
-                        <p class="card-text">{{ chargerDetail.connectors[currentConnectorIndex].startMeterValue }}</p>
+                        <h5 class="card-title">Charge Value</h5>
+                        <p class="card-text">{{ chargerDetail.connectors[currentConnectorIndex].currentMeterValue }}</p>
                       </div>
                     </div>
                     <div class="card shadow mb-3" *ngIf="chargerDetail.connectors_status[currentConnectorIndex] === 'Charging'" style="width: 18rem;">
                       <div class="card-body">
-                        <h5 class="card-title">Charging Time</h5>
-                        <p class="card-text">{{ chargerDetail.connectors[currentConnectorIndex].currentMeterValue }}</p>
+                        <h5 class="card-title">Charging Time (Minutes)</h5>
+                        <p class="card-text">{{ chargerDetail.connectors[currentConnectorIndex].chargeDuration }}</p>
                       </div>
                     </div>
                   </div>

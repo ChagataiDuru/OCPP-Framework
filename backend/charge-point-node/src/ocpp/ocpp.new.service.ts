@@ -73,7 +73,7 @@ export class OcppService implements OnApplicationBootstrap{
                     case 'Started':
                         this.logger.log(`Transaction started`);
                         const charger = await this.findBySerialNumber(client.getCpId());
-                        charger.status = 'occupied';
+                        //charger.status = 'occupied';
                         charger.save();
                         response.totalCost = 0;
                         break;
@@ -90,7 +90,7 @@ export class OcppService implements OnApplicationBootstrap{
 
                 if (request.transactionInfo.chargingState === 'EVConnected') {
                     const charger = await this.findBySerialNumber(client.getCpId());
-                    charger.status = 'available';
+                    //charger.status = 'available';
                     charger.save();
                 }
 

@@ -128,7 +128,7 @@
             id="CP"
             type="text"
             placeholder="Id Station"
-            value="ws://localhost:3000/EVB-P20261797"
+            value="ws://localhost:9210/EVB-P20261797"
           />
           <label>Tag</label
           ><input
@@ -484,13 +484,14 @@
 
         sessionStorage.setItem("LastAction", "MeterValues");
         var val = $("#metervalue").val();
+        var connectorId = parseInt($("#CUID").val());
         console.log(1);
         var MV = JSON.stringify([
           2, 
           id,
           "MeterValues",
           {
-            connectorId: 1,
+            connectorId: connectorId,
             transactionId: Number($("#transactionId").val()),
             meterValue: [
               {
