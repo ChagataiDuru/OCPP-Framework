@@ -52,9 +52,9 @@ services:
       - node-network
 
   central-system-node:
-    container_name: central-system-node
+    container_name: charge-point-node
     build:
-      context: ./central-system
+      context: ./charge-point-node
       dockerfile: Dockerfile
     ports:
       - '4001:4001'
@@ -69,22 +69,6 @@ services:
       - node-network
     depends_on:
       - rabbitmq 
-  mail-service:
-    container_name: mail-service
-    build:
-      context: ./mail-service
-      dockerfile: Dockerfile
-    ports:
-      - '4003:4003'
-    environment:
-      DATABASE_NAME: ${DATABASE_NAME}
-      DATABASE_URI: ${DATABASE_URI}
-      USER_SERVICE_HOST: ${USER_SERVICE_HOST}
-    volumes:
-      - ./:/usr/src/app
-    networks:
-      - node-network
-
 volumes:
   mongodb:
 

@@ -10,7 +10,7 @@ from tkinter.scrolledtext import ScrolledText
 
 from ocpp.v16 import ChargePoint as cp
 from ocpp.v16 import call, call_result
-from ocpp.v16.enums import RegistrationStatus, Action, AuthorizationStatus, RemoteStartStopStatus
+from ocpp.v16.enums import RegistrationStatus, AuthorizationStatus
 
 class MyChargePoint(cp):
     interval:int = 60
