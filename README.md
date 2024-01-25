@@ -28,6 +28,59 @@ The frontend consists of several pages, each serving a specific purpose:
 
 ## Getting Started
 
+## Running the Project Locally
+
+To run the project locally, follow these steps:
+
+1. Clone the repository.
+2. Navigate to the project root directory.
+
+### Step 1: Install Dependencies
+
+#### Frontend Dependencies
+
+```bash
+# Navigate to frontend directory
+cd frontend/ocpp-csms-angular
+
+# Install Angular dependencies
+npm install
+
+# Navigate to management system directory
+cd backend/management-system
+
+# Install Nest.js dependencies
+npm install
+
+### Step 2: Run the project
+
+#### Option 1: Using Docker
+
+
+#### Option 2: Using Script
+
+Run the following script to start the frontend, management system, and charge-point-node on root of the project:
+
+```bash
+./start.sh
+
+#### Option 3: Manual Start
+
+cd frontend/ocpp-csms-angular
+ng serve
+
+cd backend/management-system
+npm run start:dev
+
+cd backend/charge-point-node
+npm run start:dev
+
+### Step 3: Access to project
+
+The project will be accessible at http://localhost:4200.
+
+
+
 1. **Charge Point Node**:
    - Deploy the NestJS application in real-world locations near charge stations.
    - Handle WebSocket events, communicate with charge stations, and update the database.
