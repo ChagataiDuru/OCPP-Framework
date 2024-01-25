@@ -31,11 +31,11 @@ services:
     logging:
       driver: none
 
-  app:
+  management-system:
     container_name: management-system
     build:
-      context: ./management-system
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./backend/management-system/Dockerfile
     environment:
       DATABASE_NAME: ${DATABASE_NAME}
       DATABASE_URI: ${DATABASE_URI}
@@ -47,15 +47,15 @@ services:
       - mongodb
       - rabbitmq
     volumes:
-      - ./:/usr/src/app
+      - ./backend/management-system:/usr/src/app
     networks:
       - node-network
 
-  central-system-node:
+  charge-point-node:
     container_name: charge-point-node
     build:
-      context: ./charge-point-node
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./backend/charge-point-node/Dockerfile
     ports:
       - '4001:4001'
     environment:
@@ -64,11 +64,22 @@ services:
       USER_SERVICE_HOST: ${USER_SERVICE_HOST}
       MAIL_SERVICE_URI: ${MAIL_SERVICE_URI}
     volumes:
-      - ./:/usr/src/app
+      - ./backend/charge-point-node:/usr/src/app
     networks:
       - node-network
     depends_on:
-      - rabbitmq 
+      - rabbitmq
+
+  frontend:
+    container_name: ocpp-csms-angular
+    build:
+      context: .
+      dockerfile: ./frontend/ocpp-csms-angular/Dockerfile
+    ports:
+      - '4200:4200'
+    networks:
+      - node-network
+
 volumes:
   mongodb:
 

@@ -28,6 +28,10 @@ The frontend consists of several pages, each serving a specific purpose:
 
 ## Getting Started
 
+## Running with Docker
+
+
+
 ## Running the Project Locally
 
 To run the project locally, follow these steps:
@@ -45,7 +49,9 @@ cd frontend/ocpp-csms-angular
 
 # Install Angular dependencies
 npm install
-
+```
+#### Backend Dependencies
+```bash
 # Navigate to management system directory
 cd backend/management-system
 
@@ -54,17 +60,14 @@ npm install
 ```
 ### Step 2: Run the project
 
-#### Option 1: Using Docker
-
-
-#### Option 2: Using Script
+#### Option 1: Using Script
 
 Run the following script to start the frontend, management system, and charge-point-node on root of the project:
 
 ```bash
 ./start.sh
 ```
-#### Option 3: Manual Start
+#### Option 2: Manual Start
 ```bash
 cd frontend/ocpp-csms-angular
 ng serve

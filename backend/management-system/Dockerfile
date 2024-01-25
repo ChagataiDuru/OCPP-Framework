@@ -2,11 +2,17 @@ FROM node:20-alpine as builder
 
 WORKDIR /app
 
+# Copy package.json and package-lock.json first to leverage Docker cache
 COPY package.json package-lock.json ./
 
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the application code
 COPY . .
 
-RUN npm install
+# Build the NestJS application
+RUN npm run build
 
 # Build the NestJS application
 RUN npm run build
