@@ -51,7 +51,7 @@ cd backend/management-system
 
 # Install Nest.js dependencies
 npm install
-
+```
 ### Step 2: Run the project
 
 #### Option 1: Using Docker
@@ -63,23 +63,23 @@ Run the following script to start the frontend, management system, and charge-po
 
 ```bash
 ./start.sh
-
+```
 #### Option 3: Manual Start
-
+```bash
 cd frontend/ocpp-csms-angular
 ng serve
-
+```
+```bash
 cd backend/management-system
 npm run start:dev
-
+```
+```bash
 cd backend/charge-point-node
 npm run start:dev
-
+```
 ### Step 3: Access to project
 
 The project will be accessible at http://localhost:4200.
-
-
 
 1. **Charge Point Node**:
    - Deploy the NestJS application in real-world locations near charge stations.
